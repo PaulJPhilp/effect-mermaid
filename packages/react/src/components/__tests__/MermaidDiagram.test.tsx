@@ -1,3 +1,6 @@
+// Setup testing environment
+import "@testing-library/jest-dom/vitest"
+
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";

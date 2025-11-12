@@ -8,7 +8,10 @@
     "dev": "node ../../node_modules/.bin/vite",
     "build": "node ../../node_modules/.bin/vite build",
     "preview": "node ../../node_modules/.bin/vite preview",
-    "type-check": "node ../../node_modules/.bin/tsc --noEmit"
+    "type-check": "node ../../node_modules/.bin/tsc --noEmit",
+    "test": "node ../../node_modules/.bin/vitest",
+    "test:ui": "node ../../node_modules/.bin/vitest --ui",
+    "test:coverage": "node ../../node_modules/.bin/vitest --coverage"
   },
   "dependencies": {
     "effect": "^3.19.0",

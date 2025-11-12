@@ -1,3 +1,6 @@
+// Setup testing environment
+import "@testing-library/jest-dom/vitest"
+
 import {
   beforeEach,
   describe,

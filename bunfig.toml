@@ -9,6 +9,7 @@ workspaces = [
 root = "."
 match = [
   "test/**/*.test.{ts,tsx}",
-  "packages/**/src/**/*.test.{ts,tsx,mts,cts}"
+  "packages/*/src/**/*.test.{ts,tsx,mts,cts}",
+  "apps/*/src/**/*.test.{ts,tsx}"
 ]
-exclude = ["**/dist/**", "**/build/**"]
+exclude = ["**/dist/**", "**/build/**", "**/__dist/**"]

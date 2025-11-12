@@ -5,18 +5,14 @@ export default defineConfig({
   plugins: [],
 
   test: {
-    environment: "jsdom",
+    environment: "happy-dom",
     setupFiles: [path.join(__dirname, "setupTests.ts")],
-    include: ["./test/**/*.test.ts", "./packages/**/src/**/*.test.ts"],
+    include: ["./test/**/*.test.ts", "./packages/*/src/**/*.test.ts", "./apps/*/src/**/*.test.ts"],
     exclude: [
-      "dist/**",
-      "build/**",
       "**/dist/**",
       "**/build/**",
       "**/*.d.ts",
       "**/*.d.mts",
-      "**/build/**/*.js",
-      "**/dist/**/*.js",
     ],
     globals: true,
   },
