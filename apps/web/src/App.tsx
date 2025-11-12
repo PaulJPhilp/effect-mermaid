@@ -61,8 +61,7 @@ function EditorContent() {
 		return () => clearTimeout(timer);
 	}, [code]);
 
-	const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-		const newCode = e.target.value;
+	const handleCodeChange = (newCode: string) => {
 		setCode(newCode);
 		setLineCount(newCode.split("\n").length);
 		setDiagramError(null); // Clear error when user edits code
