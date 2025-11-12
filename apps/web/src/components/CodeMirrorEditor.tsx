@@ -1,6 +1,7 @@
 import React from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { createMermaidLanguage } from '../utils/mermaidLanguageMode'
+import { mermaidLinter } from '../utils/mermaidLinter'
 import '../styles/mermaidEditorTheme.css'
 
 interface CodeMirrorEditorProps {
@@ -38,7 +39,7 @@ export const CodeMirrorEditor = React.forwardRef<
         <CodeMirror
           value={value}
           onChange={onChange}
-          extensions={[createMermaidLanguage()]}
+          extensions={[createMermaidLanguage(), mermaidLinter]}
           height="100%"
           theme="light"
           basicSetup={{
