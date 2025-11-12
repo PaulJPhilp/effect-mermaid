@@ -12,6 +12,8 @@ describe('Setup Verification', () => {
 
   test('testing-library/jest-dom matchers are available', () => {
     const div = document.createElement('div')
+    document.body.appendChild(div)
     expect(div).toBeInTheDocument()
+    document.body.removeChild(div)
   })
 })
