@@ -36,6 +36,7 @@ function EditorContent() {
 	const [lineCount, setLineCount] = useState(
 		DEFAULT_DIAGRAM.split("\n").length,
 	);
+	const [redrawKey, setRedrawKey] = useState(0);
 
 	// Use theme from theme builder
 	const { currentTheme, customThemes, allThemeNames } = useThemeBuilder();
@@ -76,6 +77,11 @@ function EditorContent() {
 	const handleReset = () => {
 		setCode(DEFAULT_DIAGRAM);
 		setLineCount(DEFAULT_DIAGRAM.split("\n").length);
+	};
+
+	const handleRedraw = () => {
+		setRedrawKey(prev => prev + 1);
+		setDiagramError(null);
 	};
 
 	// Add theme builder sidebar
@@ -119,6 +125,14 @@ function EditorContent() {
 							title="Copy to clipboard"
 						>
 							📋 Copy
+						</button>
+						<button
+							className="btn btn-small"
+							type="button"
+							onClick={handleRedraw}
+							title="Redraw diagram"
+						>
+							🔄 Redraw
 						</button>
 						<button
 							className="btn btn-small"
@@ -249,6 +263,7 @@ function EditorContent() {
 					)}
 					{!diagramError && (
 						<MermaidDiagram
+						key={redrawKey}
 							diagram={code}
 							config={{ theme }}
 							onError={(error) => {
