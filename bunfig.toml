@@ -1,0 +1,14 @@
+[workspace]
+root = "."
+workspaces = [
+  "packages/*",
+  "apps/*"
+]
+
+[test]
+root = "."
+match = [
+  "test/**/*.test.{ts,tsx}",
+  "packages/**/src/**/*.test.{ts,tsx,mts,cts}"
+]
+exclude = ["**/dist/**", "**/build/**"]

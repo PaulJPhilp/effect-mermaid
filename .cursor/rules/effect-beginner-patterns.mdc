@@ -1,0 +1,428 @@
+---
+description: Beginner-level Effect.js patterns and best practices
+globs: "*.ts, *.tsx"
+alwaysApply: false
+---
+
+# Effect.js Beginner Patterns
+
+Essential patterns for working with Effect.js in TypeScript applications.
+
+## Understand that Effects are Lazy Blueprints
+
+Effects don't execute immediately—they're blueprints that describe a computation. Only when you call a runtime function like `Effect.runSync()` or `Effect.runPromise()` does the code actually execute.
+
+```typescript
+import { Effect } from "effect";
+
+console.log("1. Defining the Effect blueprint...");
+
+const program = Effect.sync(() => {
+  console.log("3. The blueprint is now being executed!");
+  return 42;
+});
+
+console.log("2. The blueprint has been defined. No work has been done yet.");
+
+Effect.runSync(program);
+```
+
+## Understand the Three Effect Channels (A, E, R)
+
+An `Effect<A, E, R>` has three type channels:
+- **A**: Success type (what you get on success)
+- **E**: Error type (what can go wrong)
+- **R**: Requirements (services needed)
+
+The signature documents the contract completely.
+
+```typescript
+import { Effect, Data } from "effect";
+
+// Define error type
+class UserNotFoundError extends Data.TaggedError("UserNotFoundError") {}
+
+interface User { readonly name: string; }
+
+// Service for dependency injection
+export class Database extends Effect.Service<Database>()(
+  "Database",
+  {
+    sync: () => ({
+      findUser: (id: number) =>
+        id === 1
+          ? Effect.succeed({ name: "Paul" })
+          : Effect.fail(new UserNotFoundError())
+    })
+  }
+) {}
+
+// Signature: Effect<User, UserNotFoundError, Database>
+// Success type: User
+// Error type: UserNotFoundError
+// Requirements: Database service
+const getUser = (id: number): Effect.Effect<User, UserNotFoundError, Database> =>
+  Effect.gen(function* () {
+    const db = yield* Database;
+    return yield* db.findUser(id);
+  });
+```
+
+## Execute Synchronous Effects with Effect.runSync
+
+Use `runSync` for effects that are fully synchronous (no async operations).
+
+```typescript
+import { Effect } from "effect";
+
+const program = Effect.sync(() => {
+  const n = 10;
+  return n * 2;
+});
+
+const result = Effect.runSync(program); // result: 20
+```
+
+## Execute Asynchronous Effects with Effect.runPromise
+
+Use `runPromise` to execute effects that contain async operations and get a Promise back.
+
+```typescript
+import { Effect } from "effect";
+
+const program = Effect.succeed("Hello, World!").pipe(
+  Effect.delay("1 second"),
+);
+
+const promise = Effect.runPromise(program);
+
+promise.then(console.log); // Logs "Hello, World!" after 1 second
+```
+
+## Create Pre-resolved Effects with succeed and fail
+
+Create effects that immediately resolve with a value or error without doing any work.
+
+```typescript
+import { Effect, Data } from "effect";
+
+class MyError extends Data.TaggedError("MyError") {}
+
+// Success effect
+const success = Effect.succeed(42);
+
+// Failure effect
+const failure = Effect.fail(new MyError());
+
+// Use in a program
+const program = Effect.gen(function* () {
+  const value = yield* success;
+  console.log(value); // 42
+});
+```
+
+## Wrap Synchronous Computations with sync and try
+
+Use `Effect.sync()` for safe synchronous code. Use `Effect.try()` to catch exceptions.
+
+```typescript
+import { Effect } from "effect";
+
+// Safe synchronous computation
+const randomNumber = Effect.sync(() => Math.random());
+
+// Wrap code that might throw
+const parseJson = (input: string) =>
+  Effect.try({
+    try: () => JSON.parse(input),
+    catch: (error) => new Error(`JSON parsing failed: ${error}`),
+  });
+
+const program = Effect.gen(function* () {
+  const num = yield* randomNumber;
+  const data = yield* parseJson('{"key": "value"}');
+  console.log(num, data);
+});
+
+Effect.runSync(program);
+```
+
+## Wrap Asynchronous Computations with tryPromise
+
+Wrap Promise-returning functions safely, converting rejections to the error channel.
+
+```typescript
+import { Effect, Data } from "effect";
+
+class HttpError extends Data.TaggedError("HttpError")<{
+  readonly message: string;
+}> {}
+
+const fetchUrl = (url: string) =>
+  Effect.tryPromise({
+    try: () => fetch(url),
+    catch: (error) =>
+      new HttpError({ message: `Failed to fetch: ${error}` }),
+  });
+
+const program = Effect.gen(function* () {
+  const response = yield* fetchUrl("https://api.example.com");
+  console.log(response.status);
+});
+```
+
+## Write Sequential Code with Effect.gen
+
+Use `Effect.gen` with a generator function to write sequential-looking code that handles async operations.
+
+```typescript
+import { Effect } from "effect";
+
+const fetchUser = (id: number) =>
+  Effect.succeed({ id, name: `User ${id}` });
+
+const fetchPosts = (userId: number) =>
+  Effect.succeed([{ id: 1, title: "Post 1" }]);
+
+const program = Effect.gen(function* () {
+  // Read like regular synchronous code
+  const user = yield* fetchUser(1);
+  const posts = yield* fetchPosts(user.id);
+
+  console.log(`${user.name} has ${posts.length} posts`);
+  return { user, posts };
+});
+
+Effect.runPromise(program);
+```
+
+## Transform Effect Values with map and flatMap
+
+Use `map` for simple transformations and `flatMap` to chain effects that depend on each other.
+
+```typescript
+import { Effect } from "effect";
+
+const getUser = (id: number) =>
+  Effect.succeed({ id, name: "Paul" });
+
+const program = Effect.gen(function* () {
+  // map: transform the value
+  const upperName = yield* getUser(1).pipe(
+    Effect.map((user) => user.name.toUpperCase())
+  );
+  console.log(upperName); // "PAUL"
+
+  // flatMap: chain dependent effects
+  const result = yield* getUser(2).pipe(
+    Effect.flatMap((user) =>
+      Effect.succeed(`Hello, ${user.name}!`)
+    )
+  );
+  console.log(result); // "Hello, Paul!"
+});
+
+Effect.runSync(program);
+```
+
+## Use .pipe for Composition
+
+Chain operations using `.pipe()` for readable left-to-right composition.
+
+```typescript
+import { Effect } from "effect";
+
+const program = Effect.succeed(5).pipe(
+  Effect.map((n) => n * 2),
+  Effect.map((n) => `The result is ${n}`),
+  Effect.tap(Effect.log)
+);
+
+Effect.runSync(program);
+```
+
+## Safely Bracket Resource Usage with acquireRelease
+
+Use `acquireRelease` to manage resources: acquire → use → release (guaranteed cleanup).
+
+```typescript
+import { Effect } from "effect";
+
+const getConnection = Effect.sync(() => ({ id: Math.random() })).pipe(
+  Effect.tap(() => Effect.log("Connection acquired")),
+);
+
+const closeConnection = (conn: { id: number }) =>
+  Effect.log(`Connection ${conn.id} closed`);
+
+const program = Effect.acquireRelease(
+  getConnection,
+  closeConnection
+).pipe(
+  Effect.flatMap((conn) =>
+    Effect.log(`Using connection ${conn.id}...`)
+  ),
+  Effect.scoped // Required when using acquireRelease
+);
+
+Effect.runPromise(program);
+```
+
+## Comparing Data by Value with Structural Equality
+
+Use `Data.struct` or `Data.tagged` to enable value-based equality with `Equal.equals()`.
+
+```typescript
+import { Data, Equal } from "effect";
+
+interface Point {
+  readonly _tag: "Point";
+  readonly x: number;
+  readonly y: number;
+}
+
+const Point = Data.tagged<Point>("Point");
+
+const p1 = Point({ x: 1, y: 2 });
+const p2 = Point({ x: 1, y: 2 });
+
+console.log(p1 === p2); // false (different references)
+console.log(Equal.equals(p1, p2)); // true (same values)
+```
+
+## Collect Stream Results with Stream.runCollect
+
+Execute a stream and collect all emitted values into a Chunk.
+
+```typescript
+import { Effect, Stream, Chunk } from 'effect';
+
+const program = Stream.range(1, 10).pipe(
+  Stream.filter((n) => n % 2 === 0),
+  Stream.map((n) => `Even: ${n}`),
+  Stream.runCollect // Collect all results
+);
+
+Effect.runPromise(program).then((results) => {
+  console.log(Chunk.toArray(results));
+  // ["Even: 2", "Even: 4", "Even: 6", "Even: 8"]
+});
+```
+
+## Create a Stream from a List
+
+Use `Stream.fromIterable` to create a stream pipeline from an array or collection.
+
+```typescript
+import { Effect, Stream, Chunk } from 'effect';
+
+const numbers = [1, 2, 3, 4, 5];
+
+const program = Stream.fromIterable(numbers).pipe(
+  Stream.map((n) => n * 2),
+  Stream.runCollect
+);
+
+Effect.runPromise(program).then((results) => {
+  console.log(Chunk.toArray(results)); // [2, 4, 6, 8, 10]
+});
+```
+
+## Run a Pipeline for Side Effects with Stream.runDrain
+
+Execute a stream for its side effects without collecting results.
+
+```typescript
+import { Effect, Stream } from 'effect';
+
+const tasks = ['task 1', 'task 2', 'task 3'];
+
+const program = Stream.fromIterable(tasks).pipe(
+  Stream.mapEffect((task) => Effect.log(`Completing ${task}`)),
+  Stream.runDrain // Run for effects, discard results
+);
+
+Effect.runPromise(program);
+```
+
+## Solve Promise Problems with Effect
+
+Effect solves core Promise limitations: untyped errors, no dependency injection, and no cancellation.
+
+**Promise problems:**
+- Errors are `unknown`, not typed
+- No built-in dependency injection
+- No cancellation support
+- Error handling is verbose
+
+**Effect solutions:**
+```typescript
+import { Effect, Data } from "effect";
+
+// 1. Typed errors
+class UserError extends Data.TaggedError("UserError")<{
+  readonly message: string;
+}> {}
+
+// 2. Dependency injection via services
+export class UserService extends Effect.Service<UserService>()(
+  "UserService",
+  {
+    sync: () => ({
+      getUser: (id: number) =>
+        id > 0
+          ? Effect.succeed({ id, name: `User ${id}` })
+          : Effect.fail(new UserError({ message: "Invalid ID" }))
+    })
+  }
+) {}
+
+// 3. Composable, testable, type-safe
+const getUser = (id: number) =>
+  Effect.gen(function* () {
+    const service = yield* UserService;
+    return yield* service.getUser(id);
+  });
+
+// Use it
+const program = getUser(1).pipe(
+  Effect.catchTag("UserError", (error) =>
+    Effect.succeed({ id: 0, name: "Unknown" })
+  )
+);
+
+Effect.runPromise(Effect.provide(program, UserService.Default));
+```
+
+## Set Up a New Effect Project
+
+Quick setup checklist for a new Effect project.
+
+```bash
+# 1. Initialize project
+npm init -y
+
+# 2. Install dependencies
+npm install effect
+npm install -D typescript tsx
+
+# 3. Create tsconfig.json with strict mode
+echo '{
+  "compilerOptions": {
+    "strict": true,
+    "target": "ES2020",
+    "module": "ESNext"
+  }
+}' > tsconfig.json
+
+# 4. Create src/index.ts
+mkdir src
+echo 'import { Effect } from "effect";
+
+const program = Effect.log("Hello, World!");
+
+Effect.runSync(program);' > src/index.ts
+
+# 5. Run the program
+npx tsx src/index.ts
+```

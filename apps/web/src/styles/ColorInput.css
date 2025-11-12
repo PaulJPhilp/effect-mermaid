@@ -1,0 +1,84 @@
+.color-input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.color-input-wrapper label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #333;
+  text-transform: capitalize;
+}
+
+.color-input-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.color-button {
+  width: 40px;
+  height: 40px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.color-button:hover {
+  border-color: #999;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.color-button:focus {
+  outline: none;
+  border-color: #666;
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
+}
+
+.color-text-input {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  font-family: monospace;
+  font-size: 0.875rem;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.color-text-input:focus {
+  outline: none;
+  border-color: #666;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.1);
+}
+
+.color-picker-popover {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 0.75rem;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.color-picker-popover .react-colorful {
+  width: 200px;
+  height: 200px;
+}
+
+/* Override react-colorful styles for better integration */
+.color-picker-popover .react-colorful__saturation {
+  border-radius: 8px 8px 0 0;
+}
+
+.color-picker-popover .react-colorful__hue {
+  border-radius: 0 0 8px 8px;
+}

@@ -1,0 +1,1200 @@
+---
+description: Advanced-level Effect.js patterns for production applications
+globs: "*.ts, *.tsx"
+alwaysApply: false
+---
+
+# Effect.js Advanced Patterns
+
+Production-grade patterns for building sophisticated Effect applications.
+
+## Add Caching by Wrapping a Layer
+
+Add cross-cutting concerns like caching to a service without altering its original implementation.
+
+```typescript
+import { Effect, Layer, Ref } from "effect";
+
+// 1. Define the service interface
+class WeatherService extends Effect.Service<WeatherService>()(
+  "WeatherService",
+  {
+    sync: () => ({
+      getForecast: (city: string) => Effect.succeed(`Sunny in ${city}`),
+    }),
+  }
+) {}
+
+// 2. The "Live" implementation that is slow
+const WeatherServiceLive = Layer.succeed(
+  WeatherService,
+  WeatherService.of({
+    getForecast: (city) =>
+      Effect.succeed(`Sunny in ${city}`).pipe(
+        Effect.delay("2 seconds"),
+        Effect.tap(() => Effect.log(`Fetched live forecast for ${city}`))
+      ),
+  })
+);
+
+// 3. The Caching Wrapper Layer
+const WeatherServiceCached = Layer.effect(
+  WeatherService,
+  Effect.gen(function* () {
+    const underlyingService = yield* WeatherService;
+    const cache = yield* Ref.make(new Map<string, string>());
+
+    return WeatherService.of({
+      getForecast: (city) =>
+        Ref.get(cache).pipe(
+          Effect.flatMap((map) =>
+            map.has(city)
+              ? Effect.log(`Cache HIT for ${city}`).pipe(
+                  Effect.as(map.get(city)!)
+                )
+              : Effect.log(`Cache MISS for ${city}`).pipe(
+                  Effect.flatMap(() => underlyingService.getForecast(city)),
+                  Effect.tap((forecast) =>
+                    Ref.update(cache, (map) => map.set(city, forecast))
+                  )
+                )
+          )
+        ),
+    });
+  })
+);
+
+// 4. Compose the final layer
+const AppLayer = Layer.provide(WeatherServiceCached, WeatherServiceLive);
+
+// 5. The application logic
+const program = Effect.gen(function* () {
+  const weather = yield* WeatherService;
+  yield* weather.getForecast("London"); // First call is slow (MISS)
+  yield* weather.getForecast("London"); // Second call is instant (HIT)
+});
+
+Effect.runPromise(Effect.provide(program, AppLayer));
+```
+
+## Build a Basic HTTP Server
+
+Use a managed Runtime from a Layer to handle requests in a Node.js HTTP server.
+
+```typescript
+import { Effect, Fiber, Layer, Duration } from "effect";
+import { createServer } from "node:http";
+
+// Define a simple service
+class Greeter extends Effect.Service<Greeter>()(
+  "Greeter",
+  {
+    sync: () => ({
+      greet: (name: string) => Effect.succeed(`Hello, ${name}!`)
+    })
+  }
+) {}
+
+// Create HTTP server
+const createHttpServer = (port: number) =>
+  Effect.gen(function* () {
+    const greeter = yield* Greeter;
+
+    const httpServer = yield* Effect.sync(() => {
+      const server = createServer((req, res) => {
+        const url = new URL(req.url || "/", `http://${req.headers.host}`);
+        const name = url.searchParams.get("name") || "World";
+
+        Effect.runFork(
+          greeter.greet(name).pipe(
+            Effect.tap((greeting) =>
+              Effect.sync(() => {
+                res.writeHead(200, { "Content-Type": "text/plain" });
+                res.end(greeting);
+              })
+            )
+          )
+        );
+      });
+      return server;
+    });
+
+    yield* Effect.addFinalizer(() =>
+      Effect.sync(() => httpServer.close())
+    );
+
+    yield* Effect.async<void, Error>((resume) => {
+      httpServer.on("error", (error) => resume(Effect.fail(error)));
+      httpServer.listen(3001, () => {
+        resume(Effect.succeed(void 0));
+      });
+    });
+
+    yield* Effect.log("Server started on http://localhost:3001");
+  });
+
+const program = Effect.gen(function* () {
+  yield* createHttpServer(3001).pipe(Effect.scoped);
+  yield* Effect.sleep(Duration.seconds(2));
+  yield* Effect.log("Shutting down...");
+});
+
+Effect.runPromise(program.pipe(
+  Effect.provide(Greeter.Default)
+));
+```
+
+## Create a Managed Runtime for Scoped Resources
+
+Create a managed runtime for resources with guaranteed cleanup.
+
+```typescript
+import { Effect, Layer } from "effect";
+
+class DatabasePool extends Effect.Service<DatabasePool>()(
+  "DbPool",
+  {
+    scoped: Effect.gen(function* () {
+      yield* Effect.log("Acquiring pool");
+
+      yield* Effect.addFinalizer(() =>
+        Effect.log("Releasing pool")
+      );
+
+      return {
+        query: () => Effect.succeed("result")
+      };
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const db = yield* DatabasePool;
+  yield* Effect.log("Using DB");
+  const result = yield* db.query();
+  yield* Effect.log(`Result: ${result}`);
+});
+
+Effect.runPromise(
+  Effect.scoped(program).pipe(
+    Effect.provide(DatabasePool.Default)
+  )
+);
+```
+
+## Create a Reusable Runtime from Layers
+
+Compile layers into a Runtime once to avoid rebuilding the dependency graph for every execution.
+
+```typescript
+import { Effect, Layer, Runtime } from "effect";
+
+class GreeterService extends Effect.Service<GreeterService>()(
+  "Greeter",
+  {
+    sync: () => ({
+      greet: (name: string) => Effect.sync(() => `Hello ${name}`)
+    })
+  }
+) {}
+
+const runtime = Effect.runSync(
+  Layer.toRuntime(GreeterService.Default).pipe(
+    Effect.scoped
+  )
+);
+
+// Reuse the runtime for multiple executions
+Runtime.runPromise(runtime)(
+  Effect.gen(function* () {
+    const greeter = yield* GreeterService;
+    const msg = yield* greeter.greet("World");
+    yield* Effect.log(msg);
+  })
+);
+```
+
+## Decouple Fibers with Queues and PubSub
+
+Use Queue for point-to-point work distribution and PubSub for broadcast messaging.
+
+```typescript
+import { Effect, Queue, Fiber } from "effect";
+
+const queueExample = Effect.gen(function* () {
+  const queue = yield* Queue.bounded<string>(10);
+
+  // Producer fiber
+  const producer = yield* Effect.gen(function* () {
+    for (let i = 0; i < 5; i++) {
+      const job = `job-${i}`;
+      yield* Effect.log(`Producing ${job}...`);
+      yield* Queue.offer(queue, job);
+      yield* Effect.sleep("500 millis");
+    }
+  }).pipe(Effect.fork);
+
+  // Consumer fiber
+  const consumer = yield* Effect.gen(function* () {
+    for (let i = 0; i < 5; i++) {
+      const job = yield* Queue.take(queue);
+      yield* Effect.log(`Processing ${job}...`);
+      yield* Effect.sleep("1 second");
+    }
+  }).pipe(Effect.fork);
+
+  yield* Fiber.join(producer);
+  yield* Fiber.join(consumer);
+});
+
+Effect.runPromise(queueExample);
+```
+
+## Execute Long-Running Apps with Effect.runFork
+
+Launch a long-running application as a manageable, detached fiber.
+
+```typescript
+import { Effect, Fiber } from "effect";
+
+const server = Effect.gen(function* () {
+  let count = 0;
+  while (count < 5) {
+    yield* Effect.log(`Server tick ${count}`);
+    yield* Effect.sleep("1 second");
+    count++;
+  }
+}).pipe(Effect.fork);
+
+Effect.runPromise(
+  Effect.gen(function* () {
+    const serverFiber = yield* server;
+    yield* Effect.log("Server started");
+    yield* Fiber.join(serverFiber);
+    yield* Effect.log("Server stopped");
+  })
+);
+```
+
+## Handle Unexpected Errors by Inspecting the Cause
+
+Distinguish between expected and unexpected failures by inspecting the Cause.
+
+```typescript
+import { Cause, Effect, Data } from "effect";
+
+class DatabaseError extends Data.TaggedError("DatabaseError")<{
+  readonly message: string;
+}> {}
+
+const flakyOperation = Effect.try({
+  try: () => {
+    if (Math.random() > 0.5) {
+      throw new Error("Unexpected network error");
+    }
+    return { success: true };
+  },
+  catch: (e) => new DatabaseError({ message: String(e) })
+});
+
+const program = flakyOperation.pipe(
+  Effect.catchAllCause((cause) =>
+    Effect.gen(function* () {
+      // Inspect the cause
+      if (Cause.isDie(cause)) {
+        yield* Effect.log("Unexpected error detected");
+        const error = Cause.failureOption(cause);
+        yield* Effect.log(`Details: ${JSON.stringify(error)}`);
+      } else if (Cause.isFailure(cause)) {
+        yield* Effect.log("Expected error occurred");
+      }
+      return "error handled";
+    })
+  )
+);
+
+Effect.runPromise(program);
+```
+
+## Implement Graceful Shutdown for Your Application
+
+Use Effect.runFork and OS signal listeners for graceful shutdown.
+
+```typescript
+import { Effect, Fiber } from "effect";
+
+class Database extends Effect.Service<Database>()(
+  "Database",
+  {
+    scoped: Effect.gen(function* () {
+      yield* Effect.log("DB opened");
+
+      yield* Effect.addFinalizer(() =>
+        Effect.log("DB closed")
+      );
+
+      return { query: () => Effect.succeed("data") };
+    })
+  }
+) {}
+
+const server = Effect.gen(function* () {
+  const db = yield* Database;
+  yield* Effect.log("Server started");
+
+  yield* Effect.sleep("10 seconds");
+}).pipe(Effect.scoped);
+
+const app = Effect.provide(server, Database.Default);
+
+const appFiber = Effect.runFork(app);
+
+// Simulate shutdown signal after 3 seconds
+setTimeout(() => {
+  console.log("Shutting down gracefully...");
+  Effect.runPromise(Fiber.interrupt(appFiber));
+}, 3000);
+```
+
+## Manage Resource Lifecycles with Scope
+
+Use Scope for fine-grained, manual control over resource cleanup guarantees.
+
+```typescript
+import { Effect, Scope } from "effect";
+
+const acquireFile = Effect.log("File opened").pipe(
+  Effect.as({ write: (data: string) => Effect.log(`Wrote: ${data}`) }),
+);
+const releaseFile = Effect.log("File closed");
+
+const scopedFile = Effect.acquireRelease(acquireFile, () => releaseFile);
+
+const program = Effect.gen(function* () {
+  const file = yield* Effect.scoped(scopedFile);
+
+  yield* file.write("hello");
+  yield* file.write("world");
+  // File automatically closed here
+});
+
+Effect.runPromise(program);
+```
+
+## Manage Resources Safely in a Pipeline
+
+Use Stream.acquireRelease to safely manage resource lifecycles within a pipeline.
+
+```typescript
+import { Effect } from "effect";
+
+class FileService extends Effect.Service<FileService>()(
+  "FileService",
+  {
+    sync: () => ({
+      readFile: (path: string) => Effect.succeed("content"),
+      cleanup: (path: string) => Effect.log(`Cleaned up ${path}`)
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const fileService = yield* FileService;
+  const filePath = "/tmp/test.txt";
+
+  yield* Effect.scoped(
+    Effect.gen(function* () {
+      yield* Effect.addFinalizer(() =>
+        fileService.cleanup(filePath)
+      );
+
+      const content = yield* fileService.readFile(filePath);
+      yield* Effect.log(`Read: ${content}`);
+    })
+  );
+});
+
+Effect.runPromise(Effect.provide(program, FileService.Default));
+```
+
+## Manually Manage Lifecycles with Scope
+
+Use Effect.scope and Scope.addFinalizer for fine-grained resource control.
+
+```typescript
+import { Effect } from "effect";
+
+const openFile = (path: string) =>
+  Effect.succeed({ path, handle: Math.random() }).pipe(
+    Effect.tap((f) => Effect.log(`Opened ${f.path}`))
+  );
+
+const closeFile = (file: { path: string }) =>
+  Effect.log(`Closed ${file.path}`);
+
+const program = Effect.gen(function* () {
+  const file = yield* Effect.acquireRelease(
+    openFile("data.csv"),
+    (f) => closeFile(f)
+  );
+
+  yield* Effect.log(`Using ${file.path}`);
+});
+
+Effect.runPromise(Effect.scoped(program));
+```
+
+## Organize Layers into Composable Modules
+
+Organize services into modular Layers that compose hierarchically.
+
+```typescript
+import { Effect, Layer } from "effect";
+
+// Core infrastructure
+class Logger extends Effect.Service<Logger>()(
+  "Logger",
+  {
+    sync: () => ({
+      log: (msg: string) => Effect.log(msg)
+    })
+  }
+) {}
+
+// Feature module that depends on Logger
+class UserRepository extends Effect.Service<UserRepository>()(
+  "UserRepository",
+  {
+    effect: Effect.gen(function* () {
+      const logger = yield* Logger;
+      return {
+        findById: (id: number) =>
+          Effect.gen(function* () {
+            yield* logger.log(`Finding user ${id}`);
+            return { id, name: `User ${id}` };
+          })
+      };
+    }),
+    dependencies: [Logger.Default]
+  }
+) {}
+
+// Application layer composition
+const AppLayer = Layer.merge(
+  UserRepository.Default,
+  Logger.Default
+);
+
+const program = Effect.gen(function* () {
+  const repo = yield* UserRepository;
+  const user = yield* repo.findById(1);
+  yield* Effect.log(`Found: ${user.name}`);
+});
+
+Effect.runPromise(Effect.provide(program, AppLayer));
+```
+
+## Poll for Status Until a Task Completes
+
+Use Effect.race to run polling that automatically stops when the main task completes.
+
+```typescript
+import { Effect, Schedule, Duration } from "effect";
+
+const longRunningJob = Effect.log("Job complete!").pipe(
+  Effect.delay(Duration.seconds(5))
+);
+
+const pollStatus = Effect.log("Polling: In Progress...").pipe(
+  Effect.repeat(Schedule.fixed(Duration.seconds(1)))
+);
+
+const program = Effect.race(longRunningJob, pollStatus);
+
+Effect.runPromise(program);
+```
+
+## Run Background Tasks with Effect.fork
+
+Start a non-blocking background process and manage its lifecycle.
+
+```typescript
+import { Effect, Fiber } from "effect";
+
+const tickingClock = Effect.log("tick").pipe(
+  Effect.delay("1 second"),
+  Effect.forever
+);
+
+const program = Effect.gen(function* () {
+  yield* Effect.log("Starting background clock");
+
+  const clockFiber = yield* Effect.fork(tickingClock);
+
+  yield* Effect.log("Main work for 5 seconds...");
+  yield* Effect.sleep("5 seconds");
+
+  yield* Effect.log("Stopping background clock");
+  yield* Fiber.interrupt(clockFiber);
+
+  yield* Effect.log("Done");
+});
+
+Effect.runPromise(program);
+```
+
+## Teach your AI Agents Effect with the MCP Server
+
+Provide live application context to AI agents for more accurate assistance.
+
+```typescript
+// 1. Run the MCP server in your terminal
+// npx @effect/mcp-server --layer src/layers.ts:AppLayer
+
+// 2. Configure your AI agent (e.g., Cursor) to use the MCP server
+// http://localhost:3333
+
+// 3. The AI can now query:
+// - Available services in the AppLayer
+// - Method signatures for services
+// - Dependencies and their types
+// - Service implementations
+
+// Example: The AI generates correct, context-aware code:
+import { Effect } from "effect";
+
+class UserService extends Effect.Service<UserService>()(
+  "UserService",
+  {
+    sync: () => ({
+      getUser: (id: string) => Effect.succeed({ id, name: "Paul" })
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const userService = yield* UserService;
+  const user = yield* userService.getUser("123");
+  yield* Effect.log(`Found user: ${user.name}`);
+});
+
+Effect.runPromise(Effect.provide(program, UserService.Default));
+```
+
+## Understand Fibers as Lightweight Threads
+
+Fibers are virtual threads managed by the Effect runtime for massive concurrency.
+
+```typescript
+import { Effect, Fiber } from "effect";
+
+const program = Effect.gen(function* () {
+  // Create 100,000 lightweight fibers
+  // This would be impossible with OS threads
+  const fiberCount = 100_000;
+  yield* Effect.log(`Creating ${fiberCount} fibers...`);
+
+  const tasks = Array.from({ length: fiberCount }, (_, i) =>
+    Effect.sleep("100 millis").pipe(Effect.as(i))
+  );
+
+  const fibers = yield* Effect.forEach(tasks, Effect.fork);
+  yield* Effect.log("All fibers created and running");
+
+  const results = yield* Fiber.joinAll(fibers);
+  yield* Effect.log(`All ${results.length} fibers completed`);
+
+  // Key insights:
+  // 1. Fibers are extremely lightweight (~1KB vs ~8MB for OS threads)
+  // 2. 100k fibers created almost instantly
+  // 3. Runtime efficiently schedules fibers using work-stealing pool
+  // 4. Fibers can be suspended/resumed without blocking OS threads
+  // 5. Enables massive concurrency for I/O-bound operations
+});
+
+Effect.runPromise(program);
+```
+
+## Use Fiber.race for Competitive Execution
+
+Run multiple effects competitively, using the result from whichever finishes first.
+
+```typescript
+import { Effect, Fiber, Duration } from "effect";
+
+const fast = Effect.log("Fast result").pipe(
+  Effect.delay(Duration.millis(100))
+);
+
+const slow = Effect.log("Slow result").pipe(
+  Effect.delay(Duration.seconds(1))
+);
+
+const program = Effect.race(fast, slow);
+
+Effect.runPromise(program);
+// Output: "Fast result" (slow is automatically interrupted)
+```
+
+## Use Fiber.zip for Parallel Execution
+
+Run multiple effects in parallel and collect their results.
+
+```typescript
+import { Effect, Fiber } from "effect";
+
+const effect1 = Effect.succeed(1);
+const effect2 = Effect.succeed(2);
+const effect3 = Effect.succeed(3);
+
+const program = Effect.all([effect1, effect2, effect3]);
+
+Effect.runPromise(program).then(([a, b, c]) => {
+  console.log(`Results: ${a}, ${b}, ${c}`);
+});
+```
+
+## Build a Generic Cache Layer
+
+Create a reusable caching layer that works with any service.
+
+```typescript
+import { Effect, Layer, Ref } from "effect";
+
+// Generic cache wrapper function
+const withCache = <R, E, A>(
+  service: Effect.Effect<A, E, R>,
+  key: string,
+  cache: Ref.Ref<Map<string, A>>
+): Effect.Effect<A, E, R> =>
+  Effect.gen(function* () {
+    const map = yield* Ref.get(cache);
+    if (map.has(key)) {
+      yield* Effect.log(`Cache HIT: ${key}`);
+      return map.get(key)!;
+    }
+
+    yield* Effect.log(`Cache MISS: ${key}`);
+    const result = yield* service;
+    yield* Ref.update(cache, (m) => m.set(key, result));
+    return result;
+  });
+
+// Example usage
+class ApiService extends Effect.Service<ApiService>()(
+  "ApiService",
+  {
+    sync: () => ({
+      fetchData: (id: string) =>
+        Effect.succeed({ id, data: "content" }).pipe(
+          Effect.delay("2 seconds")
+        )
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const api = yield* ApiService;
+  const cache = yield* Ref.make(new Map<string, any>());
+
+  // First call - slow
+  yield* withCache(api.fetchData("1"), "1", cache);
+
+  // Second call - fast (from cache)
+  yield* withCache(api.fetchData("1"), "1", cache);
+});
+
+Effect.runPromise(Effect.provide(program, ApiService.Default));
+```
+
+## Use Effect.taggedError for Type-Safe Error Tagging
+
+Leverage Effect's error tagging for precise error handling.
+
+```typescript
+import { Data, Effect } from "effect";
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly message: string;
+  readonly statusCode: number;
+}> {}
+
+class TimeoutError extends Data.TaggedError("TimeoutError")<{
+  readonly duration: number;
+}> {}
+
+const fetchData = (url: string): Effect.Effect<unknown, NetworkError | TimeoutError> =>
+  Effect.tryPromise({
+    try: () => fetch(url).then(res => res.json()),
+    catch: (error) => new NetworkError({
+      message: String(error),
+      statusCode: 0
+    })
+  });
+
+const program = (url: string) =>
+  fetchData(url).pipe(
+    Effect.timeout("5 seconds"),
+    Effect.catchTags({
+      NetworkError: (e) => Effect.succeed(`Network error: ${e.message}`),
+      TimeoutException: () => Effect.succeed("Request timed out")
+    })
+  );
+
+Effect.runPromise(program("https://api.example.com"));
+```
+
+## Implement Request/Response Middleware
+
+Create middleware patterns for cross-cutting concerns in HTTP handling.
+
+```typescript
+import { Effect } from "effect";
+
+interface Request {
+  readonly method: string;
+  readonly path: string;
+}
+
+interface Response {
+  readonly status: number;
+  readonly body: string;
+}
+
+type Middleware = (
+  handler: (req: Request) => Effect.Effect<Response>
+) => (req: Request) => Effect.Effect<Response>;
+
+// Logging middleware
+const loggingMiddleware: Middleware = (handler) => (req) =>
+  Effect.gen(function* () {
+    yield* Effect.log(`[REQUEST] ${req.method} ${req.path}`);
+    const response = yield* handler(req);
+    yield* Effect.log(`[RESPONSE] ${response.status}`);
+    return response;
+  });
+
+// Authentication middleware
+const authMiddleware: Middleware = (handler) => (req) =>
+  Effect.gen(function* () {
+    if (!req.path.startsWith("/public")) {
+      yield* Effect.log("Checking authentication...");
+    }
+    return yield* handler(req);
+  });
+
+// Compose middlewares
+const withMiddleware = (
+  handler: (req: Request) => Effect.Effect<Response>,
+  ...middlewares: Middleware[]
+) => middlewares.reduce((h, m) => m(h), handler);
+
+// Handler
+const handler = (req: Request): Effect.Effect<Response> =>
+  Effect.succeed({ status: 200, body: "OK" });
+
+const finalHandler = withMiddleware(
+  handler,
+  loggingMiddleware,
+  authMiddleware
+);
+
+// Usage
+const request: Request = { method: "GET", path: "/api/users" };
+Effect.runPromise(finalHandler(request));
+```
+
+## Create Plugin Architecture with Dynamic Layers
+
+Build extensible applications using dynamic layer composition.
+
+```typescript
+import { Effect, Layer } from "effect";
+
+// Core plugin interface
+interface Plugin {
+  readonly name: string;
+  readonly layer: Layer.Layer<unknown>;
+}
+
+class PluginManager extends Effect.Service<PluginManager>()(
+  "PluginManager",
+  {
+    sync: () => ({
+      registerPlugin: (plugin: Plugin) =>
+        Effect.log(`Registered plugin: ${plugin.name}`),
+      listPlugins: () =>
+        Effect.succeed(["plugin-1", "plugin-2"])
+    })
+  }
+) {}
+
+// Example plugins
+const pluginA: Plugin = {
+  name: "Plugin A",
+  layer: Layer.succeed(
+    class ServiceA extends Effect.Service<ServiceA>()(
+      "ServiceA",
+      { sync: () => ({ doA: () => Effect.succeed("A") }) }
+    ) {}
+  )
+};
+
+const program = Effect.gen(function* () {
+  const manager = yield* PluginManager;
+  yield* manager.registerPlugin(pluginA);
+  const plugins = yield* manager.listPlugins();
+  yield* Effect.log(`Loaded plugins: ${plugins.join(", ")}`);
+});
+
+Effect.runPromise(Effect.provide(program, PluginManager.Default));
+```
+
+## Use Effect.timeout for Operation Deadlines
+
+Apply strict time limits to operations for reliability.
+
+```typescript
+import { Effect, Duration } from "effect";
+
+const slowOperation = Effect.log("Starting slow operation").pipe(
+  Effect.delay(Duration.seconds(10))
+);
+
+const program = slowOperation.pipe(
+  Effect.timeout(Duration.seconds(2)),
+  Effect.catchAll(() =>
+    Effect.succeed("Operation timed out")
+  )
+);
+
+Effect.runPromise(program);
+```
+
+## Implement Circuit Breaker Pattern
+
+Prevent cascading failures by implementing a circuit breaker.
+
+```typescript
+import { Effect, Ref, Duration } from "effect";
+
+interface CircuitBreakerState {
+  readonly status: "closed" | "open" | "half-open";
+  readonly failures: number;
+  readonly lastFailureTime?: number;
+}
+
+class CircuitBreaker extends Effect.Service<CircuitBreaker>()(
+  "CircuitBreaker",
+  {
+    sync: () => ({
+      execute: <E, A>(
+        effect: Effect.Effect<A, E>,
+        state: Ref.Ref<CircuitBreakerState>,
+        threshold: number = 5,
+        timeout: Duration.Duration = Duration.seconds(60)
+      ): Effect.Effect<A, E | Error> =>
+        Effect.gen(function* () {
+          const current = yield* Ref.get(state);
+
+          if (current.status === "open") {
+            const timeSinceFailure = Date.now() - (current.lastFailureTime ?? 0);
+            if (timeSinceFailure < Duration.toMillis(timeout)) {
+              return yield* Effect.fail(
+                new Error("Circuit breaker is open")
+              );
+            }
+            // Try half-open state
+            yield* Ref.set(state, {
+              status: "half-open",
+              failures: 0
+            });
+          }
+
+          return yield* effect.pipe(
+            Effect.catchAll((e) =>
+              Effect.gen(function* () {
+                yield* Ref.update(state, (s) => ({
+                  ...s,
+                  failures: s.failures + 1,
+                  lastFailureTime: Date.now(),
+                  status:
+                    s.failures + 1 >= threshold ? "open" : s.status
+                }));
+                return yield* Effect.fail(e);
+              })
+            )
+          );
+        })
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const breaker = yield* CircuitBreaker;
+  const state = yield* Ref.make<CircuitBreakerState>({
+    status: "closed",
+    failures: 0
+  });
+
+  // Execute effect with circuit breaker protection
+  const result = yield* breaker.execute(
+    Effect.succeed("Success"),
+    state
+  ).pipe(
+    Effect.catchAll((error) =>
+      Effect.succeed(`Error: ${error.message}`)
+    )
+  );
+
+  yield* Effect.log(result);
+});
+
+Effect.runPromise(Effect.provide(program, CircuitBreaker.Default));
+```
+
+## Build a Request Deduplication Layer
+
+Prevent duplicate requests from being processed simultaneously.
+
+```typescript
+import { Effect, Ref, Map as EffectMap } from "effect";
+
+class RequestDeduplicator extends Effect.Service<RequestDeduplicator>()(
+  "RequestDeduplicator",
+  {
+    sync: () => ({
+      deduplicate: <A>(
+        key: string,
+        request: Effect.Effect<A>,
+        cache: Ref.Ref<Map<string, Promise<A>>>
+      ): Effect.Effect<A> =>
+        Effect.gen(function* () {
+          const cached = yield* Ref.get(cache);
+
+          if (cached.has(key)) {
+            yield* Effect.log(`Cache HIT: ${key}`);
+            return yield* Effect.tryPromise({
+              try: () => cached.get(key)!,
+              catch: (e) => new Error(String(e))
+            });
+          }
+
+          yield* Effect.log(`Cache MISS: ${key}`);
+          const promise = Effect.runPromise(request);
+          yield* Ref.update(cache, (m) => m.set(key, promise));
+
+          return yield* Effect.tryPromise({
+            try: () => promise,
+            catch: (e) => new Error(String(e))
+          });
+        })
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const dedup = yield* RequestDeduplicator;
+  const cache = yield* Ref.make(new Map<string, Promise<any>>());
+
+  const api = (id: string) =>
+    Effect.succeed({ id, data: "content" }).pipe(
+      Effect.delay("1 second")
+    );
+
+  // Multiple requests for same resource - only one actually executes
+  yield* Effect.all([
+    dedup.deduplicate("user-1", api("1"), cache),
+    dedup.deduplicate("user-1", api("1"), cache),
+    dedup.deduplicate("user-1", api("1"), cache)
+  ]);
+});
+
+Effect.runPromise(Effect.provide(program, RequestDeduplicator.Default));
+```
+
+## Implement Bulkhead Pattern for Resource Isolation
+
+Isolate critical resources to prevent one failure from affecting others.
+
+```typescript
+import { Effect, Queue } from "effect";
+
+class BulkheadPool<A> extends Effect.Service<BulkheadPool<A>>()(
+  "BulkheadPool",
+  {
+    sync: () => {
+      const capacity = 10;
+      return {
+        execute: <E>(
+          effect: Effect.Effect<A, E>,
+          queue: Queue.Queue<Effect.Effect<A, E>>
+        ): Effect.Effect<A, E> =>
+          Effect.gen(function* () {
+            yield* Queue.offer(queue, effect);
+            // Process queue with concurrency limit
+            return yield* effect;
+          })
+      };
+    }
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const pool = yield* BulkheadPool;
+  const queue = yield* Queue.bounded<Effect.Effect<string>>(10);
+
+  // Task 1 won't block Task 2 due to bulkhead isolation
+  yield* Effect.all([
+    pool.execute(Effect.succeed("Task 1"), queue),
+    pool.execute(Effect.succeed("Task 2"), queue)
+  ]);
+});
+
+Effect.runPromise(Effect.provide(program, BulkheadPool.Default));
+```
+
+## Create Observability with Span Hierarchies
+
+Build rich observability using nested spans.
+
+```typescript
+import { Effect, Duration } from "effect";
+
+const trace = (spanName: string) =>
+  Effect.withSpan(spanName);
+
+const getUserWithPosts = (userId: string) =>
+  Effect.gen(function* () {
+    const user = yield* Effect.succeed({ id: userId, name: "Paul" }).pipe(
+      Effect.delay(Duration.millis(100)),
+      trace("fetch_user")
+    );
+
+    const posts = yield* Effect.succeed([
+      { id: "1", title: "Post 1" }
+    ]).pipe(
+      Effect.delay(Duration.millis(50)),
+      trace("fetch_posts")
+    );
+
+    return { user, posts };
+  }).pipe(
+    trace("get_user_with_posts")
+  );
+
+Effect.runPromise(getUserWithPosts("123"));
+```
+
+## Use Effect.absorb for Error Absorption
+
+Safely absorb errors from side effects without propagating them.
+
+```typescript
+import { Effect } from "effect";
+
+const riskyOperation = Effect.try({
+  try: () => {
+    if (Math.random() > 0.5) {
+      throw new Error("Random failure");
+    }
+    return "success";
+  },
+  catch: (e) => new Error(String(e))
+});
+
+const program = Effect.gen(function* () {
+  // Execute the risky operation but ignore its failure
+  const result = yield* riskyOperation.pipe(
+    Effect.catchAll(() => Effect.succeed("fallback"))
+  );
+
+  yield* Effect.log(`Result: ${result}`);
+});
+
+Effect.runPromise(program);
+```
+
+## Build Type-Safe Configuration with discriminated unions
+
+Use discriminated unions to model configuration variants type-safely.
+
+```typescript
+import { Schema, Effect } from "effect";
+
+type DatabaseConfig =
+  | { readonly _tag: "postgres"; readonly host: string; readonly port: number }
+  | { readonly _tag: "sqlite"; readonly path: string };
+
+const ConfigSchema = Schema.Union(
+  Schema.Struct({
+    _tag: Schema.Literal("postgres"),
+    host: Schema.String,
+    port: Schema.Number
+  }),
+  Schema.Struct({
+    _tag: Schema.Literal("sqlite"),
+    path: Schema.String
+  })
+);
+
+const getConnection = (config: DatabaseConfig): Effect.Effect<string> =>
+  config._tag === "postgres"
+    ? Effect.succeed(`postgres://${config.host}:${config.port}`)
+    : Effect.succeed(`sqlite://${config.path}`);
+
+const program = Effect.gen(function* () {
+  const config: DatabaseConfig = {
+    _tag: "postgres",
+    host: "localhost",
+    port: 5432
+  };
+
+  const connection = yield* getConnection(config);
+  yield* Effect.log(`Connected to: ${connection}`);
+});
+
+Effect.runPromise(program);
+```
+
+## Implement Adaptive Retry with Exponential Backoff
+
+Implement sophisticated retry strategies that adapt to failures.
+
+```typescript
+import { Effect, Schedule, Duration, Data } from "effect";
+
+class RetryableError extends Data.TaggedError("RetryableError")<{
+  readonly attempt: number;
+  readonly message: string;
+}> {}
+
+let attempts = 0;
+
+const unreliableApi = Effect.gen(function* () {
+  attempts++;
+  if (attempts < 3) {
+    return yield* Effect.fail(
+      new RetryableError({
+        attempt: attempts,
+        message: "Service unavailable"
+      })
+    );
+  }
+  return "Success";
+});
+
+// Exponential backoff: 100ms, 200ms, 400ms, etc.
+const retryPolicy = Schedule.exponential(Duration.millis(100)).pipe(
+  Schedule.compose(Schedule.recurs(5))
+);
+
+const program = unreliableApi.pipe(
+  Effect.retry(retryPolicy),
+  Effect.catchAll((error) =>
+    Effect.succeed(`Failed after retries: ${error.message}`)
+  )
+);
+
+Effect.runPromise(program);
+```

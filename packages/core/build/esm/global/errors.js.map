@@ -1,0 +1,1 @@
+{"version":3,"file":"errors.js","names":["Data","MermaidError","TaggedError"],"sources":["../../../src/global/errors.ts"],"sourcesContent":[null],"mappings":"AAAA,SAASA,IAAI,QAAQ,QAAQ;AAE7B;;;;;;;;;;;;;;;;;;;;;;;;;;AA0BA,OAAM,MAAOC,YAAa,sBAAQD,IAAI,CAACE,WAAW,CAAC,cAAc,CAI/D","ignoreList":[]}

@@ -1,0 +1,1603 @@
+---
+description: Intermediate-level Effect.js patterns and best practices
+globs: "*.ts, *.tsx"
+alwaysApply: false
+---
+
+# Effect.js Intermediate Patterns
+
+Advanced patterns for building production-grade Effect applications.
+
+## Access Configuration from the Context
+
+Store configuration in a service and access it via dependency injection.
+
+```typescript
+import { Effect } from "effect";
+
+class AppConfig extends Effect.Service<AppConfig>()(
+  "AppConfig",
+  {
+    sync: () => ({
+      host: "localhost",
+      port: 3000
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const config = yield* AppConfig;
+  yield* Effect.log(`Starting server on http://${config.host}:${config.port}`);
+});
+
+Effect.runPromise(
+  Effect.provide(program, AppConfig.Default)
+);
+```
+
+## Accessing the Current Time with Clock
+
+Use the Clock service for time-dependent logic, enabling deterministic testing.
+
+```typescript
+import { Effect, Clock, Duration } from "effect";
+
+interface Token {
+  readonly value: string;
+  readonly expiresAt: number;
+}
+
+const isTokenExpired = (token: Token): Effect.Effect<boolean, never, Clock.Clock> =>
+  Clock.currentTimeMillis.pipe(
+    Effect.map((now) => now > token.expiresAt)
+  );
+
+const program = Effect.gen(function* () {
+  const token = { value: "abc", expiresAt: Date.now() + 1000 };
+  const expired = yield* isTokenExpired(token);
+  yield* Effect.log(`Token expired? ${expired}`);
+});
+
+Effect.runPromise(program);
+```
+
+## Accumulate Multiple Errors with Either
+
+Collect all validation errors instead of stopping at the first failure.
+
+```typescript
+import { Effect, Schema, Data } from "effect";
+
+type User = {
+  name: string;
+  email: string;
+};
+
+const UserSchema = Schema.Struct({
+  name: Schema.String.pipe(Schema.minLength(3)),
+  email: Schema.String.pipe(Schema.pattern(/@/)),
+});
+
+const validateUser = (input: User) =>
+  Schema.decode(UserSchema)(input, { errors: "all" });
+
+const program = Effect.gen(function* () {
+  const inputs = [
+    { name: "Al", email: "invalid" },  // Two errors
+    { name: "Alice", email: "alice@example.com" }  // Valid
+  ];
+
+  for (const input of inputs) {
+    yield* validateUser(input).pipe(
+      Effect.match({
+        onFailure: (error) => Effect.log(`Validation failed: ${error.message}`),
+        onSuccess: (user) => Effect.log(`User is valid: ${user.name}`)
+      })
+    );
+  }
+});
+
+Effect.runPromise(program);
+```
+
+## Add Custom Metrics to Your Application
+
+Instrument code with counters, gauges, and timers for monitoring.
+
+```typescript
+import { Effect, Metric, Duration } from "effect";
+
+const userRegisteredCounter = Metric.counter("users_registered_total", {
+  description: "A counter for how many users have been registered.",
+});
+
+const dbDurationTimer = Metric.timer(
+  "db_operation_duration",
+  "A timer for DB operation durations"
+);
+
+const saveUserToDb = Effect.succeed("user saved").pipe(
+  Effect.delay(Duration.millis(Math.random() * 100)),
+);
+
+const createUser = Effect.gen(function* () {
+  yield* saveUserToDb.pipe(Metric.trackDuration(dbDurationTimer));
+  yield* Metric.increment(userRegisteredCounter);
+  return { status: "success" };
+});
+
+Effect.runPromise(createUser);
+```
+
+## Automatically Retry Failed Operations
+
+Use `Effect.retry` with a Schedule to automatically recover from transient failures.
+
+```typescript
+import { Effect, Schedule } from "effect";
+
+const flakyApiCall = (): Effect.Effect<string, Error> =>
+  Effect.gen(function* () {
+    if (Math.random() < 0.5) {
+      return yield* Effect.fail(new Error("API is temporarily down"));
+    }
+    return "Success";
+  });
+
+// Define retry policy: 3 attempts with 100ms delay between
+const retryPolicy = Schedule.recurs(3).pipe(
+  Schedule.addDelay(() => "100 millis")
+);
+
+const program = flakyApiCall().pipe(
+  Effect.retry(retryPolicy),
+  Effect.catchAll((error) =>
+    Effect.gen(function* () {
+      yield* Effect.log(`Failed after all retries: ${error.message}`);
+      return "fallback-value";
+    })
+  )
+);
+
+Effect.runPromise(program);
+```
+
+## Avoid Long Chains of .andThen; Use Generators Instead
+
+Prefer generators for sequential logic over deeply nested chains.
+
+```typescript
+import { Effect } from "effect";
+
+// Avoid: long chains become hard to read
+// const program = step1().pipe(
+//   Effect.flatMap(step2),
+//   Effect.flatMap(step3),
+//   Effect.flatMap(step4)
+// );
+
+// Prefer: generators for clarity
+const program = Effect.gen(function* () {
+  const a = yield* Effect.succeed(42);
+  const b = yield* Effect.succeed(a * 2);
+  const c = yield* Effect.succeed(b.toString());
+  return c;
+});
+
+Effect.runPromise(program);
+```
+
+## Beyond the Date Type - Real World Dates, Times, and Timezones
+
+Use Clock service for testable time-based logic and store timestamps as primitives.
+
+```typescript
+import { Effect, Clock } from "effect";
+
+interface Event {
+  readonly message: string;
+  readonly timestamp: number; // UTC milliseconds
+}
+
+const createEvent = (message: string): Effect.Effect<Event, never, Clock.Clock> =>
+  Effect.gen(function* () {
+    const timestamp = yield* Clock.currentTimeMillis;
+    return { message, timestamp };
+  });
+
+const program = Effect.gen(function* () {
+  const event1 = yield* createEvent("User logged in");
+  const event2 = yield* createEvent("User logged out");
+  yield* Effect.log(`Events: ${JSON.stringify([event1, event2])}`);
+});
+
+Effect.runPromise(program);
+```
+
+## Compose Resource Lifecycles with Layer.merge
+
+Combine multiple independent layers to manage multiple resource lifecycles.
+
+```typescript
+import { Effect, Layer } from "effect";
+
+// Service 1: Database
+class Database extends Effect.Service<Database>()(
+  "Database",
+  {
+    sync: () => ({
+      query: (sql: string) => Effect.succeed(`db says: ${sql}`)
+    })
+  }
+) {}
+
+// Service 2: API Client
+class ApiClient extends Effect.Service<ApiClient>()(
+  "ApiClient",
+  {
+    sync: () => ({
+      fetch: (path: string) => Effect.succeed(`api says: ${path}`)
+    })
+  }
+) {}
+
+// Merge both layers into one
+const AppLayer = Layer.merge(Database.Default, ApiClient.Default);
+
+const program = Effect.gen(function* () {
+  const db = yield* Database;
+  const api = yield* ApiClient;
+
+  yield* Effect.log(yield* db.query("SELECT *"));
+  yield* Effect.log(yield* api.fetch("/users"));
+});
+
+Effect.runPromise(Effect.provide(program, AppLayer));
+```
+
+## Conditionally Branching Workflows
+
+Use predicate-based operators like `Effect.filterOrFail` for declarative control flow.
+
+```typescript
+import { Effect } from "effect";
+
+interface User {
+  id: number;
+  status: "active" | "inactive";
+  roles: string[];
+}
+
+const findUser = (id: number): Effect.Effect<User> =>
+  Effect.succeed({ id, status: "active", roles: ["admin"] });
+
+const isActive = (user: User): boolean => user.status === "active";
+const isAdmin = (user: User): boolean => user.roles.includes("admin");
+
+const program = (id: number) =>
+  findUser(id).pipe(
+    Effect.filterOrFail(isActive, () => "UserIsInactive"),
+    Effect.filterOrFail(isAdmin, () => "UserIsNotAdmin"),
+    Effect.map((user) => `Welcome, admin user #${user.id}!`),
+    Effect.catchAll((error) => Effect.succeed(error))
+  );
+
+Effect.runPromise(program(123));
+```
+
+## Control Flow with Conditional Combinators
+
+Use `Effect.if` for declarative branching without leaving the Effect world.
+
+```typescript
+import { Effect } from "effect";
+
+const attemptAdminAction = (user: { isAdmin: boolean }) =>
+  Effect.if(user.isAdmin, {
+    onTrue: () => Effect.succeed("Admin action completed."),
+    onFalse: () => Effect.fail("Permission denied.")
+  });
+
+const program = Effect.gen(function* () {
+  const adminResult = yield* attemptAdminAction({ isAdmin: true }).pipe(
+    Effect.catchAll((e) => Effect.succeed(e))
+  );
+  const userResult = yield* attemptAdminAction({ isAdmin: false }).pipe(
+    Effect.catchAll((e) => Effect.succeed(e))
+  );
+
+  yield* Effect.log(`Admin: ${adminResult}`);
+  yield* Effect.log(`User: ${userResult}`);
+});
+
+Effect.runPromise(program);
+```
+
+## Control Repetition with Schedule
+
+Create composable policies for repetition and retrying with exponential backoff and jitter.
+
+```typescript
+import { Effect, Schedule } from "effect";
+
+const flakyEffect = Effect.try({
+  try: () => {
+    if (Math.random() > 0.3) throw new Error("Transient error");
+    return "Operation succeeded!";
+  },
+  catch: (error) => error
+});
+
+// Exponential backoff with jitter, limited to 5 retries
+const retryPolicy = Schedule.exponential("100 millis").pipe(
+  Schedule.jittered,
+  Schedule.compose(Schedule.recurs(5))
+);
+
+const program = Effect.retry(flakyEffect, retryPolicy).pipe(
+  Effect.catchAll((error) => Effect.succeed(`Failed: ${error.message}`))
+);
+
+Effect.runPromise(program);
+```
+
+## Create a Service Layer from a Managed Resource
+
+Use `Layer.scoped` to manage resource lifecycle within a service.
+
+```typescript
+import { Effect } from "effect";
+
+class Database extends Effect.Service<Database>()(
+  "Database",
+  {
+    scoped: Effect.gen(function* () {
+      const id = Math.floor(Math.random() * 1000);
+
+      // Acquire resource
+      yield* Effect.log(`[Pool ${id}] Acquired`);
+
+      // Setup cleanup
+      yield* Effect.addFinalizer(() =>
+        Effect.log(`[Pool ${id}] Released`)
+      );
+
+      // Return service implementation
+      return {
+        query: (sql: string) =>
+          Effect.succeed(`Result for '${sql}' from pool ${id}`)
+      };
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const db = yield* Database;
+  const result = yield* db.query("SELECT * FROM users");
+  yield* Effect.log(result);
+});
+
+Effect.runPromise(
+  Effect.scoped(program).pipe(
+    Effect.provide(Database.Default)
+  )
+);
+```
+
+## Create a Testable HTTP Client Service
+
+Define an HttpClient service with distinct Live and Test implementations.
+
+```typescript
+import { Effect, Data, Layer } from "effect";
+
+interface HttpErrorType {
+  readonly _tag: "HttpError";
+  readonly error: unknown;
+}
+
+const HttpError = Data.tagged<HttpErrorType>("HttpError");
+
+interface HttpClientType {
+  readonly get: <T>(url: string) => Effect.Effect<T, HttpErrorType>;
+}
+
+class HttpClient extends Effect.Service<HttpClientType>()(
+  "HttpClient",
+  {
+    sync: () => ({
+      get: <T>(url: string): Effect.Effect<T, HttpErrorType> =>
+        Effect.tryPromise({
+          try: () => fetch(url).then((res) => res.json()),
+          catch: (error) => HttpError({ error })
+        })
+    })
+  }
+) {}
+
+// Test implementation
+const TestLayer = Layer.succeed(
+  HttpClient,
+  HttpClient.of({
+    get: <T>(_url: string) => Effect.succeed({ title: "Mock Data" } as T)
+  })
+);
+
+const program = Effect.gen(function* () {
+  const client = yield* HttpClient;
+  const data = yield* client.get<{ title: string }>("https://api.example.com/data");
+  yield* Effect.log(`Received: ${JSON.stringify(data)}`);
+});
+
+// Run with test implementation
+Effect.runPromise(Effect.provide(program, TestLayer));
+```
+
+## Define a Type-Safe Configuration Schema
+
+Use Config to define type-safe configuration with validation.
+
+```typescript
+import { Config, Effect, ConfigProvider, Layer } from "effect";
+
+const ServerConfig = Config.nested("SERVER")(
+  Config.all({
+    host: Config.string("HOST"),
+    port: Config.number("PORT"),
+  })
+);
+
+const program = Effect.gen(function* () {
+  const config = yield* ServerConfig;
+  yield* Effect.log(`Server config: ${JSON.stringify(config)}`);
+});
+
+// Create test config
+const TestConfig = ConfigProvider.fromMap(
+  new Map([
+    ["SERVER.HOST", "localhost"],
+    ["SERVER.PORT", "3000"]
+  ])
+);
+
+Effect.runPromise(
+  Effect.provide(
+    program,
+    Layer.setConfigProvider(TestConfig)
+  )
+);
+```
+
+## Define Contracts Upfront with Schema
+
+Define data contracts with Schema for type safety and runtime validation.
+
+```typescript
+import { Schema, Effect, Data } from "effect";
+
+const UserSchema = Schema.Struct({
+  id: Schema.Number,
+  name: Schema.String
+});
+
+type User = Schema.Schema.Type<typeof UserSchema>;
+
+class UserNotFound extends Data.TaggedError("UserNotFound")<{
+  readonly id: number;
+}> {}
+
+class Database extends Effect.Service<Database>()(
+  "Database",
+  {
+    sync: () => ({
+      getUser: (id: number) =>
+        id === 1
+          ? Effect.succeed({ id: 1, name: "John" })
+          : Effect.fail(new UserNotFound({ id }))
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const db = yield* Database;
+  const user = yield* db.getUser(1);
+  yield* Effect.log(`Found user: ${JSON.stringify(user)}`);
+});
+
+Effect.runPromise(Effect.provide(program, Database.Default));
+```
+
+## Define Type-Safe Errors with Data.TaggedError
+
+Create typed error classes for composable error handling.
+
+```typescript
+import { Data, Effect } from "effect";
+
+class DatabaseError extends Data.TaggedError("DatabaseError")<{
+  readonly cause: unknown;
+}> {}
+
+const findUser = (id: number): Effect.Effect<{ id: number; name: string }, DatabaseError> =>
+  Effect.gen(function* () {
+    if (id < 0) {
+      return yield* Effect.fail(new DatabaseError({ cause: "Invalid ID" }));
+    }
+    return { id, name: `User ${id}` };
+  });
+
+const program = Effect.gen(function* () {
+  const user = yield* findUser(1).pipe(
+    Effect.catchTag("DatabaseError", (error) =>
+      Effect.gen(function* () {
+        yield* Effect.log(`Error: ${error.cause}`);
+        return { id: -1, name: "Unknown" };
+      })
+    )
+  );
+  yield* Effect.log(`User: ${JSON.stringify(user)}`);
+});
+
+Effect.runPromise(program);
+```
+
+## Distinguish 'Not Found' from Errors
+
+Use `Option<A>` to distinguish between "not found" and actual failures.
+
+```typescript
+import { Effect, Option, Data } from "effect";
+
+interface User {
+  id: number;
+  name: string;
+}
+
+class DatabaseError extends Data.TaggedError("DatabaseError") {}
+
+const findUserInDb = (
+  id: number
+): Effect.Effect<Option.Option<User>, DatabaseError> =>
+  Effect.gen(function* () {
+    const dbResult = yield* Effect.try({
+      try: () => (id === 1 ? { id: 1, name: "Paul" } : null),
+      catch: () => new DatabaseError()
+    });
+    return Option.fromNullable(dbResult);
+  });
+
+const program = (id: number) =>
+  findUserInDb(id).pipe(
+    Effect.flatMap((maybeUser) =>
+      Option.match(maybeUser, {
+        onNone: () => Effect.log(`User with ID ${id} was not found.`),
+        onSome: (user) => Effect.log(`Found user ${user.name}.`)
+      })
+    ),
+    Effect.catchAll(() => Effect.log("Error: Could not connect to the database."))
+  );
+
+Effect.runPromise(program(1));
+```
+
+## Handle API Errors
+
+Model errors as typed classes and map them to appropriate HTTP responses.
+
+```typescript
+import { Data, Effect } from "effect";
+
+class UserNotFoundError extends Data.TaggedError("UserNotFoundError")<{
+  readonly id: string;
+}> {}
+
+class InvalidIdError extends Data.TaggedError("InvalidIdError")<{
+  readonly id: string;
+  readonly reason: string;
+}> {}
+
+class UserRepository extends Effect.Service<UserRepository>()(
+  "UserRepository",
+  {
+    sync: () => ({
+      getUser: (id: string): Effect.Effect<{ id: string; name: string }, UserNotFoundError | InvalidIdError> =>
+        Effect.gen(function* () {
+          if (!id.match(/^user_\d+$/)) {
+            return yield* Effect.fail(new InvalidIdError({
+              id,
+              reason: "ID must be in format user_<number>"
+            }));
+          }
+
+          if (id === "user_999") {
+            return yield* Effect.fail(new UserNotFoundError({ id }));
+          }
+
+          return { id, name: `User ${id}` };
+        })
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const repo = yield* UserRepository;
+
+  const result = yield* repo.getUser("user_123").pipe(
+    Effect.map((user) => ({ data: user })),
+    Effect.catchTags({
+      InvalidIdError: (e) => Effect.succeed({ error: "Bad Request", message: e.reason }),
+      UserNotFoundError: (e) => Effect.succeed({ error: "Not Found", message: `User ${e.id} not found` })
+    })
+  );
+
+  yield* Effect.log(`Result: ${JSON.stringify(result)}`);
+});
+
+Effect.runPromise(Effect.provide(program, UserRepository.Default));
+```
+
+## Handle Errors with catchTag, catchTags, and catchAll
+
+Handle different error types in a type-safe, composable way.
+
+```typescript
+import { Data, Effect } from "effect";
+
+class NetworkError extends Data.TaggedError("NetworkError")<{
+  readonly url: string;
+  readonly code: number;
+}> {}
+
+class ValidationError extends Data.TaggedError("ValidationError")<{
+  readonly field: string;
+  readonly message: string;
+}> {}
+
+const fetchUser = (id: string): Effect.Effect<{ id: string; name: string }, NetworkError | ValidationError> =>
+  id === "invalid"
+    ? Effect.fail(new NetworkError({ url: "/api/users/invalid", code: 500 }))
+    : Effect.succeed({ id, name: "Paul" });
+
+const program = Effect.gen(function* () {
+  const result = yield* fetchUser("invalid").pipe(
+    Effect.catchTags({
+      NetworkError: (e) => Effect.succeed(`Network error: ${e.code} for ${e.url}`),
+      ValidationError: (e) => Effect.succeed(`Validation error: ${e.field}`)
+    })
+  );
+  yield* Effect.log(result);
+});
+
+Effect.runPromise(program);
+```
+
+## Handle Flaky Operations with Retries and Timeouts
+
+Build resilience against slow or intermittently failing operations.
+
+```typescript
+import { Data, Duration, Effect, Schedule } from "effect";
+
+class ApiError extends Data.TaggedError("ApiError")<{
+  readonly message: string;
+}> {}
+
+const fetchData = (): Effect.Effect<{ data: string }, ApiError> =>
+  Effect.gen(function* () {
+    if (Math.random() > 0.3) {
+      return yield* Effect.fail(new ApiError({ message: "API call failed" }));
+    }
+    return { data: "success" };
+  });
+
+// Retry policy: 3 attempts, 100ms delay
+const retryPolicy = Schedule.recurs(3).pipe(
+  Schedule.addDelay(() => "100 millis")
+);
+
+const program = fetchData().pipe(
+  Effect.timeout(Duration.seconds(2)),
+  Effect.retry(retryPolicy),
+  Effect.catchAll((error) => Effect.succeed({ data: "fallback" }))
+);
+
+Effect.runPromise(program);
+```
+
+## Leverage Effect's Built-in Structured Logging
+
+Use Effect's logging system for structured, context-aware logs.
+
+```typescript
+import { Effect } from "effect";
+
+const program = Effect.gen(function* () {
+  yield* Effect.logDebug("Processing user", { userId: 123 });
+  yield* Effect.logInfo("User processed successfully");
+  yield* Effect.logWarning("Performance degradation detected", { latency: 500 });
+  yield* Effect.logError("Failed to save user", { error: "Database connection lost" });
+});
+
+Effect.runSync(program);
+```
+
+## Make an Outgoing HTTP Client Request
+
+Use Http.client to make outgoing requests while staying within the Effect ecosystem.
+
+```typescript
+import { Effect, Data } from "effect";
+
+class FetchError extends Data.TaggedError("FetchError")<{
+  readonly url: string;
+  readonly message: string;
+}> {}
+
+const fetchFromApi = (url: string): Effect.Effect<unknown, FetchError> =>
+  Effect.tryPromise({
+    try: () => fetch(url).then(res => res.json()),
+    catch: (error) => new FetchError({ url, message: String(error) })
+  });
+
+const program = Effect.gen(function* () {
+  const data = yield* fetchFromApi("https://api.example.com/users");
+  yield* Effect.log(`Fetched: ${JSON.stringify(data)}`);
+});
+
+Effect.runPromise(program);
+```
+
+## Manage Shared State Safely with Ref
+
+Use Ref for atomic operations on shared, mutable state across concurrent fibers.
+
+```typescript
+import { Effect, Ref } from "effect";
+
+const program = Effect.gen(function* () {
+  const counter = yield* Ref.make(0);
+
+  // Create 1000 concurrent increment operations
+  const tasks = Array.from({ length: 1000 }, () =>
+    Ref.update(counter, (n) => n + 1)
+  );
+
+  yield* Effect.all(tasks, { concurrency: "unbounded" });
+
+  const finalValue = yield* Ref.get(counter);
+  yield* Effect.log(`Final counter value: ${finalValue}`);
+});
+
+Effect.runPromise(program);
+```
+
+## Mapping Errors to Fit Your Domain
+
+Transform errors to create clean architectural boundaries between layers.
+
+```typescript
+import { Effect, Data } from "effect";
+
+class ConnectionError extends Data.TaggedError("ConnectionError") {}
+class QueryError extends Data.TaggedError("QueryError") {}
+
+class RepositoryError extends Data.TaggedError("RepositoryError")<{
+  readonly cause: unknown;
+}> {}
+
+const dbQuery = (): Effect.Effect<{ name: string }, ConnectionError | QueryError> =>
+  Effect.fail(new ConnectionError());
+
+// Map low-level errors to domain-level errors
+const findUser = (): Effect.Effect<{ name: string }, RepositoryError> =>
+  dbQuery().pipe(
+    Effect.mapError((error) => new RepositoryError({ cause: error }))
+  );
+
+const program = findUser().pipe(
+  Effect.catchAll((error) => Effect.log(`Error: ${error._tag}`))
+);
+
+Effect.runPromise(program);
+```
+
+## Mocking Dependencies in Tests
+
+Provide mock implementations via test-specific Layers to isolate units under test.
+
+```typescript
+import { Effect, Layer } from "effect";
+
+interface EmailClientService {
+  send: (address: string, body: string) => Effect.Effect<void>;
+}
+
+class EmailClient extends Effect.Service<EmailClientService>()(
+  "EmailClient",
+  {
+    sync: () => ({
+      send: (address: string, body: string) =>
+        Effect.log(`Sending email to ${address}`)
+    })
+  }
+) {}
+
+interface NotifierService {
+  notifyUser: (userId: number, message: string) => Effect.Effect<void>;
+}
+
+class Notifier extends Effect.Service<NotifierService>()(
+  "Notifier",
+  {
+    effect: Effect.gen(function* () {
+      const emailClient = yield* EmailClient;
+      return {
+        notifyUser: (userId: number, message: string) =>
+          emailClient.send(`user-${userId}@example.com`, message)
+      };
+    }),
+    dependencies: [EmailClient.Default]
+  }
+) {}
+
+// Mock implementation for testing
+const MockEmailClient = Layer.succeed(
+  EmailClient,
+  {
+    send: (address: string, body: string) =>
+      Effect.log(`MOCK: Email to ${address}`)
+  } as EmailClientService
+);
+
+const program = Effect.gen(function* () {
+  const notifier = yield* Notifier;
+  yield* notifier.notifyUser(123, "Your invoice is ready.");
+});
+
+// Run with mock layer
+Effect.runPromise(Effect.provide(program, MockEmailClient));
+```
+
+## Model Dependencies as Services
+
+Define dependencies as services for easy substitution and testing.
+
+```typescript
+import { Effect } from "effect";
+
+class Random extends Effect.Service<Random>()(
+  "Random",
+  {
+    sync: () => ({
+      next: Effect.sync(() => Math.random())
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const random = yield* Random;
+  const value = yield* random.next;
+  yield* Effect.log(`Random value: ${value}`);
+});
+
+Effect.runPromise(Effect.provide(program, Random.Default));
+```
+
+## Model Optional Values Safely with Option
+
+Use Option to explicitly model absent values without null/undefined.
+
+```typescript
+import { Option } from "effect";
+
+interface User {
+  id: number;
+  name: string;
+}
+
+const users: User[] = [
+  { id: 1, name: "Paul" },
+  { id: 2, name: "Alex" },
+];
+
+const findUserById = (id: number): Option.Option<User> => {
+  const user = users.find((u) => u.id === id);
+  return Option.fromNullable(user);
+};
+
+const greeting = (id: number): string =>
+  findUserById(id).pipe(
+    Option.match({
+      onNone: () => "User not found.",
+      onSome: (user) => `Welcome, ${user.name}!`,
+    }),
+  );
+
+console.log(greeting(1));  // "Welcome, Paul!"
+console.log(greeting(3));  // "User not found."
+```
+
+## Model Validated Domain Types with Brand
+
+Use Brand to create validated, opaque types.
+
+```typescript
+import { Brand, Option } from "effect";
+
+type Email = string & Brand.Brand<"Email">;
+
+const makeEmail = (s: string): Option.Option<Email> =>
+  s.includes("@") ? Option.some(s as Email) : Option.none();
+
+const sendEmail = (email: Email, body: string) => {
+  console.log(`Sending email to ${email}: ${body}`);
+};
+
+const validEmail = makeEmail("paul@example.com");
+Option.match(validEmail, {
+  onNone: () => console.log("Invalid email"),
+  onSome: (email) => sendEmail(email, "Hello!")
+});
+```
+
+## Parse and Validate Data with Schema.decode
+
+Integrate parsing and validation into the Effect workflow.
+
+```typescript
+import { Effect, Schema } from "effect";
+
+interface User {
+  name: string;
+}
+
+const UserSchema = Schema.Struct({
+  name: Schema.String,
+});
+
+const processUserInput = (input: unknown) =>
+  Effect.gen(function* () {
+    const user = yield* Schema.decodeUnknown(UserSchema)(input);
+    return `Welcome, ${user.name}!`;
+  }).pipe(
+    Effect.catchAll(() => Effect.succeed("Invalid user data."))
+  );
+
+Effect.runPromise(processUserInput({ name: "Paul" }));
+```
+
+## Process a Collection in Parallel with Effect.forEach
+
+Process collections with controlled concurrency.
+
+```typescript
+import { Effect } from "effect";
+
+const fetchUserById = (id: number) =>
+  Effect.gen(function* () {
+    yield* Effect.log(`Fetching user ${id}...`);
+    yield* Effect.sleep("1 second");
+    return { id, name: `User ${id}` };
+  });
+
+const userIds = Array.from({ length: 10 }, (_, i) => i + 1);
+
+const program = Effect.gen(function* () {
+  // Process 10 users, 5 at a time
+  const users = yield* Effect.forEach(userIds, fetchUserById, {
+    concurrency: 5,
+  });
+  yield* Effect.log(`Processed ${users.length} users`);
+});
+
+Effect.runPromise(program);
+```
+
+## Process a Large File with Constant Memory
+
+Use Stream with Node.js Readable streams for memory-efficient file processing.
+
+```typescript
+import { Effect, Stream } from "effect";
+
+const processFile = (filePath: string, content: string): Effect.Effect<void> =>
+  Effect.gen(function* () {
+    // Simulate writing file
+    yield* Effect.log(`Writing to ${filePath}`);
+
+    // Create a stream from content lines
+    const fileStream = Stream.fromEffect(Effect.succeed(content))
+      .pipe(
+        Stream.map((c: string) => c.split('\n')),
+        Stream.flatMap(Stream.fromIterable),
+        Stream.tap((line) => Effect.log(`Processing: ${line}`))
+      );
+
+    yield* Stream.runDrain(fileStream);
+  });
+
+Effect.runPromise(processFile("test.txt", "line 1\nline 2\nline 3"));
+```
+
+## Process collections of data asynchronously
+
+Use Stream to process collections with built-in concurrency control.
+
+```typescript
+import { Effect, Stream, Chunk } from 'effect';
+
+const getUserById = (id: number): Effect.Effect<{ id: number; name: string }> =>
+  Effect.succeed({ id, name: `User ${id}` }).pipe(
+    Effect.delay('100 millis')
+  );
+
+const program = Stream.fromIterable([1, 2, 3, 4, 5]).pipe(
+  Stream.mapEffect(getUserById, { concurrency: 2 }),
+  Stream.runCollect
+);
+
+Effect.runPromise(program).then((users) => {
+  console.log('All users:', Chunk.toArray(users));
+});
+```
+
+## Process Items Concurrently
+
+Use Stream.mapEffect with concurrency limits for parallel processing.
+
+```typescript
+import { Effect, Stream } from 'effect';
+
+const processItem = (id: number): Effect.Effect<string> =>
+  Effect.log(`Starting item ${id}...`).pipe(
+    Effect.delay('1 second'),
+    Effect.map(() => `Finished item ${id}`)
+  );
+
+const program = Stream.fromIterable([1, 2, 3, 4]).pipe(
+  Stream.mapEffect(processItem, { concurrency: 2 }),
+  Stream.runDrain
+);
+
+Effect.runPromise(program);
+```
+
+## Process Items in Batches
+
+Use Stream.grouped to transform a stream into batched chunks.
+
+```typescript
+import { Effect, Stream, Chunk } from 'effect';
+
+const saveUsersInBulk = (
+  userBatch: Chunk.Chunk<{ id: number }>
+): Effect.Effect<void> =>
+  Effect.log(
+    `Saving batch of ${userBatch.length} users`
+  );
+
+const userIds = Array.from({ length: 10 }, (_, i) => ({ id: i + 1 }));
+
+const program = Stream.fromIterable(userIds).pipe(
+  Stream.grouped(5),
+  Stream.mapEffect(saveUsersInBulk, { concurrency: 1 }),
+  Stream.runDrain
+);
+
+Effect.runPromise(program);
+```
+
+## Process Streaming Data with Stream
+
+Use Stream to model data that arrives over time in a composable way.
+
+```typescript
+import { Effect, Stream, Option } from "effect";
+
+interface PaginatedResponse {
+  users: { id: number; name: string }[];
+  nextPage: number | null;
+}
+
+const fetchUserPage = (
+  page: number,
+): Effect.Effect<PaginatedResponse> =>
+  Effect.succeed(
+    page < 3
+      ? {
+          users: [
+            { id: page * 2 + 1, name: `User ${page * 2 + 1}` },
+            { id: page * 2 + 2, name: `User ${page * 2 + 2}` },
+          ],
+          nextPage: page + 1,
+        }
+      : { users: [], nextPage: null },
+  );
+
+const userStream = Stream.paginateEffect(0, (page) =>
+  fetchUserPage(page).pipe(
+    Effect.map((response) => [
+      response.users,
+      Option.fromNullable(response.nextPage)
+    ] as const),
+  ),
+).pipe(
+  Stream.flatMap((users) => Stream.fromIterable(users)),
+);
+
+const program = Stream.runForEach(userStream, (user) =>
+  Effect.log(`Processing user: ${user.name}`),
+);
+
+Effect.runPromise(program);
+```
+
+## Provide Configuration to Your App via a Layer
+
+Make configuration available contextually through dependency injection.
+
+```typescript
+import { Effect, Layer } from "effect";
+
+class ServerConfig extends Effect.Service<ServerConfig>()(
+  "ServerConfig",
+  {
+    sync: () => ({
+      port: process.env.PORT ? parseInt(process.env.PORT) : 8080
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const config = yield* ServerConfig;
+  yield* Effect.log(`Starting application on port ${config.port}...`);
+});
+
+Effect.runPromise(
+  Effect.provide(program, ServerConfig.Default)
+);
+```
+
+## Provide Dependencies to Routes
+
+Define services and provide them to HTTP handlers via Layers.
+
+```typescript
+import { Effect, Data } from "effect";
+
+class Database extends Effect.Service<Database>()(
+  "Database",
+  {
+    sync: () => ({
+      getUser: (id: string) =>
+        id === "123"
+          ? Effect.succeed({ name: "Paul" })
+          : Effect.fail(new UserNotFoundError({ id })),
+    }),
+  }
+) {}
+
+class UserNotFoundError extends Data.TaggedError("UserNotFoundError")<{
+  id: string;
+}> {}
+
+const getUserHandler = (userId: string) =>
+  Effect.gen(function* () {
+    const db = yield* Database;
+    return yield* db.getUser(userId);
+  });
+
+const program = getUserHandler("123").pipe(
+  Effect.catchAll((error) => Effect.succeed({ error: error._tag }))
+);
+
+Effect.runPromise(Effect.provide(program, Database.Default));
+```
+
+## Race Concurrent Effects for the Fastest Result
+
+Use Effect.race to get the first result, automatically interrupting the losers.
+
+```typescript
+import { Effect, Option } from "effect";
+
+type User = { id: number; name: string };
+
+const checkCache: Effect.Effect<Option.Option<User>> = Effect.succeed(
+  Option.none()
+).pipe(Effect.delay("200 millis"));
+
+const queryDatabase: Effect.Effect<Option.Option<User>> = Effect.succeed(
+  Option.some({ id: 1, name: "Paul" })
+).pipe(Effect.delay("50 millis"));
+
+const program = Effect.race(checkCache, queryDatabase).pipe(
+  Effect.flatMap((result: Option.Option<User>) =>
+    Option.match(result, {
+      onNone: () => Effect.fail("User not found anywhere."),
+      onSome: (user) => Effect.succeed(user),
+    })
+  ),
+  Effect.catchAll((error) => Effect.succeed(error))
+);
+
+Effect.runPromise(program);
+```
+
+## Representing Time Spans with Duration
+
+Use Duration for unambiguous time interval representation.
+
+```typescript
+import { Effect, Duration } from "effect";
+
+const fiveSeconds = Duration.seconds(5);
+const oneHundredMillis = Duration.millis(100);
+
+const program = Effect.log("Starting...").pipe(
+  Effect.delay(oneHundredMillis),
+  Effect.flatMap(() => Effect.log("Running after 100ms")),
+  Effect.timeout(fiveSeconds)
+);
+
+Effect.runPromise(program);
+```
+
+## Retry Operations Based on Specific Errors
+
+Use predicate-based retry policies to retry only for recoverable errors.
+
+```typescript
+import { Effect, Data, Schedule } from "effect";
+
+class ServerBusyError extends Data.TaggedError("ServerBusyError") {}
+class NotFoundError extends Data.TaggedError("NotFoundError") {}
+
+let attemptCount = 0;
+
+const flakyApiCall = Effect.try({
+  try: () => {
+    attemptCount++;
+    if (attemptCount <= 2) throw new ServerBusyError();
+    return { data: "success" };
+  },
+  catch: (e) => e
+});
+
+const isRetryableError = (e: ServerBusyError | NotFoundError) =>
+  e._tag === "ServerBusyError";
+
+const retryPolicy = Schedule.recurs(3).pipe(
+  Schedule.whileInput(isRetryableError),
+  Schedule.addDelay(() => "100 millis")
+);
+
+const program = flakyApiCall.pipe(
+  Effect.retry(retryPolicy),
+  Effect.catchAll((error) => Effect.succeed({ fallback: true }))
+);
+
+Effect.runPromise(program);
+```
+
+## Run Independent Effects in Parallel with Effect.all
+
+Execute a collection of independent effects concurrently.
+
+```typescript
+import { Effect } from "effect";
+
+const fetchUser = Effect.succeed({ id: 1, name: "Paul" }).pipe(
+  Effect.delay("1 second"),
+);
+
+const fetchPosts = Effect.succeed([{ title: "Effect is great" }]).pipe(
+  Effect.delay("1.5 seconds"),
+);
+
+const program = Effect.all([fetchUser, fetchPosts]);
+
+Effect.runPromise(program);
+```
+
+## Trace Operations Across Services with Spans
+
+Create custom tracing spans for important operations and their relationships.
+
+```typescript
+import { Effect, Duration } from "effect";
+
+const validateInput = (input: unknown) =>
+  Effect.gen(function* () {
+    yield* Effect.log("Starting validation...");
+    yield* Effect.sleep(Duration.millis(10));
+    return { email: "paul@example.com" };
+  }).pipe(
+    Effect.withSpan("validateInput")
+  );
+
+const saveToDatabase = (user: { email: string }) =>
+  Effect.gen(function* () {
+    yield* Effect.log(`Saving user...`);
+    yield* Effect.sleep(Duration.millis(50));
+    return { id: 123, ...user };
+  }).pipe(
+    Effect.withSpan("saveToDatabase", {
+      attributes: { "db.user.email": user.email },
+    })
+  );
+
+const createUser = (input: unknown) =>
+  Effect.gen(function* () {
+    const validated = yield* validateInput(input);
+    const user = yield* saveToDatabase(validated);
+    return user;
+  }).pipe(
+    Effect.withSpan("createUserOperation")
+  );
+
+Effect.runPromise(createUser({ email: "user@example.com" }));
+```
+
+## Transform Data During Validation with Schema
+
+Use Schema.transform to convert data types during validation.
+
+```typescript
+import { Schema, Effect } from "effect";
+
+type RawEvent = {
+  name: string;
+  timestamp: string;
+};
+
+type ParsedEvent = {
+  name: string;
+  timestamp: Date;
+};
+
+const ApiEventSchema = Schema.Struct({
+  name: Schema.String,
+  timestamp: Schema.String
+});
+
+const program = Effect.gen(function* () {
+  const parsed = yield* Schema.decode(ApiEventSchema)({
+    name: "User Login",
+    timestamp: "2025-06-22T20:08:42.000Z"
+  });
+  return {
+    name: parsed.name,
+    timestamp: new Date(parsed.timestamp)
+  } as ParsedEvent;
+});
+
+Effect.runPromise(program);
+```
+
+## Turn a Paginated API into a Single Stream
+
+Use Stream.paginateEffect to model paginated data as a continuous stream.
+
+```typescript
+import { Effect, Stream, Chunk, Option } from 'effect';
+
+interface User {
+  id: number;
+  name: string;
+}
+
+class FetchError {
+  readonly _tag = 'FetchError' as const;
+  constructor(readonly message: string) {}
+}
+
+const allUsers: User[] = Array.from({ length: 25 }, (_, i) => ({
+  id: i + 1,
+  name: `User ${i + 1}`,
+}));
+
+const fetchUsersPage = (
+  page: number
+): Effect.Effect<[Chunk.Chunk<User>, Option.Option<number>], FetchError> =>
+  Effect.gen(function* () {
+    const pageSize = 10;
+    const offset = (page - 1) * pageSize;
+
+    if (page < 1) {
+      return yield* Effect.fail(new FetchError('Invalid page number'));
+    }
+
+    const users = Chunk.fromIterable(allUsers.slice(offset, offset + pageSize));
+    const nextPage =
+      Chunk.isNonEmpty(users) && allUsers.length > offset + pageSize
+        ? Option.some(page + 1)
+        : Option.none();
+
+    return [users, nextPage];
+  });
+
+const userStream = Stream.paginateEffect(1, fetchUsersPage);
+
+const program = userStream.pipe(
+  Stream.runCollect,
+  Effect.map((users) => users.length),
+);
+
+Effect.runPromise(program);
+```
+
+## Understand Layers for Dependency Injection
+
+A Layer is a blueprint for constructing services and managing their dependencies.
+
+```typescript
+import { Effect, Layer } from "effect";
+
+class Logger extends Effect.Service<Logger>()(
+  "Logger",
+  {
+    sync: () => ({
+      log: (msg: string) => Effect.log(msg)
+    })
+  }
+) {}
+
+class Notifier extends Effect.Service<Notifier>()(
+  "Notifier",
+  {
+    effect: Effect.gen(function* () {
+      const logger = yield* Logger;
+      return {
+        notify: (msg: string) => logger.log(`Notifying: ${msg}`)
+      };
+    }),
+    dependencies: [Logger.Default]
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const notifier = yield* Notifier;
+  yield* notifier.notify("Hello!");
+});
+
+Effect.runPromise(Effect.provide(program, Notifier.Default));
+```
+
+## Use Chunk for High-Performance Collections
+
+Prefer Chunk over Array for immutable collection operations in pipelines.
+
+```typescript
+import { Chunk } from "effect";
+
+let numbers = Chunk.fromIterable([1, 2, 3, 4, 5]);
+numbers = Chunk.append(numbers, 6);
+numbers = Chunk.prepend(numbers, 0);
+
+const firstThree = Chunk.take(numbers, 3);
+const finalArray = Chunk.toReadonlyArray(firstThree);
+
+console.log(finalArray);  // [0, 1, 2]
+```
+
+## Use Effect.gen for Business Logic
+
+Express business logic in a clear, sequential style using generators.
+
+```typescript
+import { Effect } from "effect";
+
+const validateUser = (data: any) =>
+  Effect.gen(function* () {
+    if (!data.email || !data.password) {
+      return yield* Effect.fail(new Error("Email and password required"));
+    }
+    return data;
+  });
+
+const hashPassword = (pw: string) =>
+  Effect.succeed(`hashed_${pw}`);
+
+const createUser = (userData: any) =>
+  Effect.gen(function* () {
+    const validated = yield* validateUser(userData);
+    const hashed = yield* hashPassword(validated.password);
+    return { ...validated, password: hashed };
+  });
+
+Effect.runPromise(createUser({ email: "paul@example.com", password: "secret" }));
+```
+
+## Use the Auto-Generated .Default Layer in Tests
+
+Use the auto-generated Default layer for idiomatic dependency provision.
+
+```typescript
+import { Effect } from "effect";
+
+class MyService extends Effect.Service<MyService>()(
+  "MyService",
+  {
+    sync: () => ({
+      doSomething: () => Effect.succeed("done")
+    })
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const service = yield* MyService;
+  const result = yield* service.doSomething();
+  yield* Effect.log(`Result: ${result}`);
+});
+
+Effect.runPromise(
+  Effect.provide(program, MyService.Default)
+);
+```
+
+## Validate Request Body
+
+Use Schema to automatically parse and validate request bodies.
+
+```typescript
+import { Schema, Effect } from "effect";
+
+const UserSchema = Schema.Struct({
+  name: Schema.String,
+  email: Schema.String.pipe(Schema.pattern(/@/)),
+});
+
+type User = Schema.Schema.Type<typeof UserSchema>;
+
+const validateUserRequest = (input: unknown): Effect.Effect<User> =>
+  Schema.decode(UserSchema)(input);
+
+Effect.runPromise(validateUserRequest({ name: "Paul", email: "paul@example.com" }));
+```
+
+## Write Tests That Adapt to Application Code
+
+Tests should reflect the real interface, not force application changes.
+
+```typescript
+import { Effect } from "effect";
+
+interface User {
+  id: number;
+  name: string;
+}
+
+class NotFoundError extends Error {
+  readonly _tag = "NotFoundError";
+  constructor(readonly id: number) {
+    super(`User ${id} not found`);
+  }
+}
+
+interface DatabaseServiceApi {
+  getUserById: (id: number) => Effect.Effect<User, NotFoundError>;
+}
+
+class DatabaseService extends Effect.Service<DatabaseService>()(
+  "DatabaseService",
+  {
+    sync: () => ({
+      getUserById: (id: number) => {
+        if (id === 404) {
+          return Effect.fail(new NotFoundError(id));
+        }
+        return Effect.succeed({ id, name: `User ${id}` });
+      },
+    }),
+  }
+) {}
+
+const program = Effect.gen(function* () {
+  const db = yield* DatabaseService;
+  const user = yield* db.getUserById(123);
+  yield* Effect.log(`Found: ${user.name}`);
+});
+
+Effect.runPromise(Effect.provide(program, DatabaseService.Default));
+```

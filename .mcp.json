@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "context7": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@upstash/context7-mcp"
+      ]
+    },
+    "memory": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ]
+    },
+    "DeepGraph Next.js MCP": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-code-graph@latest",
+        "vercel/next.js"
+      ]
+    },
+    "DeepGraph TypeScript MCP": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-code-graph@latest",
+        "microsoft/TypeScript"
+      ]
+    }
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "name": "effect-mermaid",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Effect-based Mermaid diagram rendering",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/effect-mermaid.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/yourusername/effect-mermaid/tree/main/packages/core#readme",
+  "bugs": {
+    "url": "https://github.com/yourusername/effect-mermaid/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "main": "./dist/dist/esm/index.js",
+  "types": "./dist/dist/dts/index.d.ts",
+  "files": [
+    "dist/dist/cjs",
+    "dist/dist/esm",
+    "dist/dist/dts",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "bunx tsc -b tsconfig.build.json && bunx babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps && bunx babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps && bunx node ../../node_modules/@effect/build-utils/main.js pack-v2",
+    "check": "bunx tsc -b tsconfig.json",
+    "test": "bun test",
+    "test:ci": "bun test --coverage"
+  },
+  "dependencies": {
+    "effect": "^3.19.0"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.24.8",
+    "@babel/core": "^7.25.2",
+    "@babel/plugin-transform-export-namespace-from": "^7.24.7",
+    "@babel/plugin-transform-modules-commonjs": "^7.24.8",
+    "@effect/build-utils": "^0.8.9",
+    "@effect/language-service": "latest",
+    "@effect/vitest": "^0.25.1",
+    "@types/node": "^22.5.2",
+    "@vitest/coverage-v8": "^3.2.0",
+    "babel-plugin-annotate-pure-calls": "^0.5.0",
+    "tsx": "^4.17.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.0"
+  },
+  "effect": {
+    "generateExports": {
+      "include": [
+        "**/*.ts"
+      ]
+    },
+    "generateIndex": {
+      "include": [
+        "**/*.ts"
+      ]
+    }
+  }
+}

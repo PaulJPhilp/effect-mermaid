@@ -1,0 +1,1 @@
+{"version":3,"file":"errors.js","names":["_effect","require","MermaidError","Data","TaggedError","exports"],"sources":["../../../src/global/errors.ts"],"sourcesContent":[null],"mappings":";;;;;;AAAA,IAAAA,OAAA,GAAAC,OAAA;AAEA;;;;;;;;;;;;;;;;;;;;;;;;;;AA0BM,MAAOC,YAAa,sBAAQC,YAAI,CAACC,WAAW,CAAC,cAAc,CAI/D;AAAAC,OAAA,CAAAH,YAAA,GAAAA,YAAA","ignoreList":[]}

@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "references": [{ "path": "../core" }, { "path": "../node" }],
+  "include": ["src/**/*"],
+  "exclude": ["**/*.test.ts", "**/*.test.tsx"],
+  "compilerOptions": {
+    "types": ["node", "react"],
+    "jsx": "react-jsx",
+    "tsBuildInfoFile": ".tsbuildinfo/build.tsbuildinfo",
+    "outDir": "build/esm",
+    "declarationDir": "build/dts",
+    "stripInternal": true,
+    "rootDir": "src",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  }
+}

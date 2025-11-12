@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "references": [{ "path": "../core" }, { "path": "../node" }],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts"],
+  "compilerOptions": {
+    "types": ["node", "react", "@testing-library/jest-dom"],
+    "jsx": "react-jsx",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+  }
+}
