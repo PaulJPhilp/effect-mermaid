@@ -37,6 +37,7 @@ function EditorContent() {
 		DEFAULT_DIAGRAM.split("\n").length,
 	);
 	const [redrawKey, setRedrawKey] = useState(0);
+	const [showDiagram, setShowDiagram] = useState(true);
 
 	// Use theme from theme builder
 	const { currentTheme, customThemes, allThemeNames } = useThemeBuilder();
@@ -80,8 +81,13 @@ function EditorContent() {
 	};
 
 	const handleRedraw = () => {
-		setRedrawKey(prev => prev + 1);
 		setDiagramError(null);
+		// Force a complete re-render by temporarily hiding and showing the diagram
+		setShowDiagram(false);
+		setTimeout(() => {
+			setShowDiagram(true);
+			setRedrawKey(prev => prev + 1);
+		}, 0);
 	};
 
 	// Add theme builder sidebar
@@ -261,7 +267,7 @@ function EditorContent() {
 							</button>
 						</div>
 					)}
-					{!diagramError && (
+					{!diagramError && showDiagram && (
 						<MermaidDiagram
 						key={redrawKey}
 							diagram={code}
