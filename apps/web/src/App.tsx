@@ -3,12 +3,13 @@ import {
 	MermaidProvider,
 	useMermaidInitialized,
 } from "effect-mermaid-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { RegistryProvider } from "@effect-atom/atom-react";
 import "./App.css";
 import { ThemeBuilderSidebar } from "./components/ThemeBuilderSidebar";
 import { useThemeBuilder } from "./hooks/useThemeBuilder";
 import { useRegisterCustomThemes } from "./hooks/useRegisterCustomThemes";
+import { getSyntaxErrorsWithContext } from "./utils/syntaxChecker";
 
 // Fixed MermaidProvider initialization
 
@@ -21,9 +22,15 @@ const DEFAULT_DIAGRAM = `graph LR
 
 type AllThemes = "default" | "dark" | "forest" | "neutral";
 
+interface SyntaxErrorInfo {
+	errors: Array<{ line: number; column?: number; message: string; type: 'error' | 'warning' }>
+	diagnostics: string[]
+}
+
 function EditorContent() {
 	const [code, setCode] = useState(DEFAULT_DIAGRAM);
 	const [diagramError, setDiagramError] = useState<Error | null>(null);
+	const [syntaxErrors, setSyntaxErrors] = useState<SyntaxErrorInfo>({ errors: [], diagnostics: [] });
 	const isInitialized = useMermaidInitialized();
 	const [lineCount, setLineCount] = useState(
 		DEFAULT_DIAGRAM.split("\n").length,
@@ -35,6 +42,21 @@ function EditorContent() {
 
 	// Register custom themes with Mermaid
 	useRegisterCustomThemes(customThemes as Record<string, { name: string; colors: Record<string, string>; description?: string }>);
+
+	// Check syntax when code changes
+	useEffect(() => {
+		const checkSyntax = async () => {
+			const result = await getSyntaxErrorsWithContext(code);
+			setSyntaxErrors(result);
+		};
+
+		// Debounce syntax checking to avoid too many checks
+		const timer = setTimeout(() => {
+			checkSyntax();
+		}, 500);
+
+		return () => clearTimeout(timer);
+	}, [code]);
 
 	const handleCodeChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
 		const newCode = e.target.value;
@@ -127,7 +149,40 @@ function EditorContent() {
 							{lineCount} line{lineCount !== 1 ? "s" : ""} • {code.length}{" "}
 							characters
 						</span>
+						{syntaxErrors.errors.length > 0 && (
+							<span style={{ color: '#ef5350', marginLeft: 'auto' }}>
+								⚠️ {syntaxErrors.errors.length} syntax error{syntaxErrors.errors.length !== 1 ? "s" : ""}
+							</span>
+						)}
 					</div>
+					{(syntaxErrors.errors.length > 0 || syntaxErrors.diagnostics.length > 0) && (
+						<div className="syntax-errors-panel">
+							{syntaxErrors.errors.length > 0 && (
+								<div className="error-section">
+									<h4 style={{ margin: '0 0 0.5rem 0', color: '#c62828' }}>Syntax Errors</h4>
+									<ul style={{ margin: '0', padding: '0 0 0 1.5rem', listStyle: 'disc' }}>
+										{syntaxErrors.errors.map((error, idx) => (
+											<li key={idx} style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: '#c62828' }}>
+												<strong>Line {error.line}:</strong> {error.message}
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
+							{syntaxErrors.diagnostics.length > 0 && (
+								<div className="diagnostic-section" style={{ marginTop: syntaxErrors.errors.length > 0 ? '0.5rem' : 0 }}>
+									<h4 style={{ margin: '0 0 0.5rem 0', color: '#f57c00' }}>Suggestions</h4>
+									<ul style={{ margin: '0', padding: '0 0 0 1.5rem', listStyle: 'disc' }}>
+										{syntaxErrors.diagnostics.map((diag, idx) => (
+											<li key={idx} style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: '#f57c00' }}>
+												{diag}
+											</li>
+										))}
+									</ul>
+								</div>
+							)}
+						</div>
+					)}
 				</div>
 			</div>
 

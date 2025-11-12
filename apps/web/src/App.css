@@ -115,6 +115,25 @@
   color: var(--color-text-secondary);
   display: flex;
   justify-content: space-between;
+  align-items: center;
+}
+
+.syntax-errors-panel {
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.05);
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  max-height: 200px;
+  overflow-y: auto;
+  font-size: 0.875rem;
+}
+
+.error-section {
+  margin-bottom: 0.5rem;
+}
+
+.diagnostic-section {
+  margin-bottom: 0.5rem;
 }
 
 .preview {
