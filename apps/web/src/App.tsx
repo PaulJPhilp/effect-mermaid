@@ -10,6 +10,7 @@ import { ThemeBuilderSidebar } from "./components/ThemeBuilderSidebar";
 import { useThemeBuilder } from "./hooks/useThemeBuilder";
 import { useRegisterCustomThemes } from "./hooks/useRegisterCustomThemes";
 import { getSyntaxErrorsWithContext } from "./utils/syntaxChecker";
+import { CodeMirrorEditor } from "./components/CodeMirrorEditor";
 
 // Fixed MermaidProvider initialization
 
@@ -138,11 +139,10 @@ function EditorContent() {
 					</div>
 				</div>
 				<div className="editor-wrapper">
-					<textarea
+					<CodeMirrorEditor
 						value={code}
 						onChange={handleCodeChange}
 						placeholder="Enter Mermaid diagram syntax here..."
-						spellCheck="false"
 					/>
 					<div className="editor-status">
 						<span>

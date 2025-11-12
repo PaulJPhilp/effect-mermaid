@@ -1,0 +1,132 @@
+/* Mermaid CodeMirror Editor Theme */
+
+/* Comment styling */
+.cm-s-light .cm-comment {
+  color: #999999;
+  font-style: italic;
+}
+
+/* Keyword styling (Mermaid keywords like graph, sequenceDiagram, etc.) */
+.cm-s-light .cm-keyword {
+  color: #0066cc;
+  font-weight: bold;
+}
+
+/* String styling (node labels, text in brackets) */
+.cm-s-light .cm-string {
+  color: #228822;
+}
+
+/* Operator styling (arrows, connections) */
+.cm-s-light .cm-operator {
+  color: #cc0000;
+  font-weight: bold;
+}
+
+/* Number styling */
+.cm-s-light .cm-number {
+  color: #ff6600;
+}
+
+/* Atom/special keyword styling */
+.cm-s-light .cm-atom {
+  color: #6f42c1;
+}
+
+/* Variable/identifier styling */
+.cm-s-light .cm-variable {
+  color: #333333;
+}
+
+/* Punctuation styling */
+.cm-s-light .cm-punctuation {
+  color: #333333;
+}
+
+/* Bracket matching */
+.cm-s-light .cm-matchingBracket {
+  background-color: #f0f0f0;
+  border: 1px solid #0066cc;
+}
+
+.cm-s-light .cm-nonmatchingBracket {
+  color: #cc0000;
+}
+
+/* Line number styling */
+.cm-s-light .cm-gutters {
+  background-color: #f5f5f5;
+  border-right: 1px solid #ddd;
+}
+
+.cm-s-light .cm-linenumber {
+  color: #999999;
+}
+
+/* Cursor styling */
+.cm-s-light .cm-cursor {
+  border-left: 1px solid #333333;
+}
+
+/* Selection styling */
+.cm-s-light .cm-selection {
+  background-color: #d9e8f7;
+}
+
+.cm-s-light .cm-selectionBackground {
+  background-color: #d9e8f7 !important;
+}
+
+/* Active line styling */
+.cm-s-light .cm-activeLine {
+  background-color: #f9f9f9;
+}
+
+/* Error/diagnostic styling */
+.cm-s-light .cm-diagnostic-error {
+  background-color: #ffe8e8;
+  color: #cc0000;
+  border-left: 3px solid #cc0000;
+}
+
+.cm-s-light .cm-diagnostic-warning {
+  background-color: #fff3e8;
+  color: #ff6600;
+  border-left: 3px solid #ff6600;
+}
+
+/* Dark mode (optional, for future use) */
+.cm-s-dark .cm-comment {
+  color: #666666;
+  font-style: italic;
+}
+
+.cm-s-dark .cm-keyword {
+  color: #6ca3ff;
+  font-weight: bold;
+}
+
+.cm-s-dark .cm-string {
+  color: #52c52e;
+}
+
+.cm-s-dark .cm-operator {
+  color: #ff5555;
+  font-weight: bold;
+}
+
+.cm-s-dark .cm-number {
+  color: #ffaa66;
+}
+
+.cm-s-dark .cm-atom {
+  color: #bb88ff;
+}
+
+.cm-s-dark .cm-variable {
+  color: #cccccc;
+}
+
+.cm-s-dark .cm-punctuation {
+  color: #cccccc;
+}

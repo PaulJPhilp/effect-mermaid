@@ -1,0 +1,69 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Component Structure Snapshots > ColorInput Component Snapshot > ColorInput renders with standard props 1`] = `
+<div
+  class="color-input-wrapper"
+>
+  <label>
+    Primary Color
+  </label>
+  <div
+    class="color-input-container"
+  >
+    <input
+      aria-label="Color picker for Primary Color"
+      class="color-button"
+      title="Click to pick color"
+      type="color"
+      value="#ffffff"
+    />
+    <input
+      autocomplete="off"
+      class="color-text-input"
+      maxlength="7"
+      placeholder="#000000"
+      type="text"
+      value="#ffffff"
+    />
+  </div>
+</div>
+`;
+
+exports[`Component Structure Snapshots > ColorInput Component Snapshot > ColorInput with hex color value 1`] = `
+<div
+  class="color-input-wrapper"
+>
+  <label>
+    Background
+  </label>
+  <div
+    class="color-input-container"
+  >
+    <input
+      aria-label="Color picker for Background"
+      class="color-button"
+      title="Click to pick color"
+      type="color"
+      value="#000000"
+    />
+    <input
+      autocomplete="off"
+      class="color-text-input"
+      maxlength="7"
+      placeholder="#000000"
+      type="text"
+      value="#000000"
+    />
+  </div>
+</div>
+`;
+
+exports[`Component Structure Snapshots > ThemeBuilderSidebar Component Snapshot > ThemeBuilderSidebar toggle button exists 1`] = `
+<button
+  aria-label="Theme builder"
+  class="theme-builder-toggle"
+  title="Open theme builder"
+>
+  🎨
+</button>
+`;
