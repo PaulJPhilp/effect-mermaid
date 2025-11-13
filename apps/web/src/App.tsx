@@ -14,6 +14,7 @@ import { useRegisterCustomThemes } from "./hooks/useRegisterCustomThemes";
 import { getSyntaxErrorsWithContext } from "./utils/syntaxChecker";
 import { toMermaidConfig } from "./types/renderConfig";
 import { CodeMirrorEditor } from "./components/CodeMirrorEditor";
+import { buttonClasses } from "./utils/buttonClasses";
 
 // Fixed MermaidProvider initialization
 
@@ -150,177 +151,148 @@ function EditorContent() {
 				resetToDefaults={resetToDefaults}
 				exportConfig={exportConfig}
 			/>
-			<div
-				className="container"
-				style={{
-					marginRight: showSettingsPanel ? '380px' : '0',
-					marginLeft: themeBuilderOpen ? '350px' : '0',
-					transition: 'margin 0.3s ease-out'
-				}}
-			>
-				<div className="panel editor">
-				<div className="panel-header">
-					<h2>Diagram Code</h2>
-					<div className="toolbar">
-						<button
-							className="btn btn-small"
-							type="button"
-							onClick={handleCopy}
-							title="Copy to clipboard"
-						>
-							📋 Copy
-						</button>
-						<button
-							className="btn btn-small"
-							type="button"
-							onClick={handleRedraw}
-							title="Redraw diagram"
-						>
-							🔄 Redraw
-						</button>
-						<button
-							className="btn btn-small"
-							type="button"
-							onClick={handleReset}
-							title="Reset to example"
-						>
-							↺ Reset
-						</button>
-						<button
-							className="btn btn-small"
-							type="button"
-							onClick={handleClear}
-							title="Clear editor"
-						>
-							🗑️ Clear
-						</button>
+			<div className="flex flex-row h-screen bg-background transition-all duration-300">
+				{/* Editor Panel */}
+				<div className="flex-1 flex flex-col bg-background overflow-hidden border-r border-border md:flex-col md:border-r-0 md:border-b">
+					<div className="flex items-center justify-between px-4 py-3 bg-muted border-b border-border gap-4 flex-shrink-0 h-14">
+						<h2 className="m-0 text-base font-semibold text-foreground">Diagram Code</h2>
+						<div className="flex gap-2 items-center flex-nowrap">
+							<button
+								className={buttonClasses.small}
+								type="button"
+								onClick={handleCopy}
+								title="Copy to clipboard"
+							>
+								📋 Copy
+							</button>
+							<button
+								className={buttonClasses.small}
+								type="button"
+								onClick={handleRedraw}
+								title="Redraw diagram"
+							>
+								🔄 Redraw
+							</button>
+							<button
+								className={buttonClasses.small}
+								type="button"
+								onClick={handleReset}
+								title="Reset to example"
+							>
+								↺ Reset
+							</button>
+							<button
+								className={buttonClasses.small}
+								type="button"
+								onClick={handleClear}
+								title="Clear editor"
+							>
+								🗑️ Clear
+							</button>
+						</div>
 					</div>
-				</div>
-				<div className="editor-wrapper">
-					<CodeMirrorEditor
-						value={code}
-						onChange={handleCodeChange}
-						placeholder="Enter Mermaid diagram syntax here..."
-					/>
-					<div className="editor-status">
-						<span>
-							{lineCount} line{lineCount !== 1 ? "s" : ""} • {code.length}{" "}
-							characters
-						</span>
-						{syntaxErrors.errors.length > 0 && (
-							<span style={{ color: '#ef5350', marginLeft: 'auto' }}>
-								⚠️ {syntaxErrors.errors.length} syntax error{syntaxErrors.errors.length !== 1 ? "s" : ""}
+					<div className="flex-1 flex flex-col overflow-hidden">
+						<CodeMirrorEditor
+							value={code}
+							onChange={handleCodeChange}
+							placeholder="Enter Mermaid diagram syntax here..."
+						/>
+						<div className="px-4 py-2 bg-muted border-t border-border text-xs text-muted-foreground flex justify-between items-center">
+							<span>
+								{lineCount} line{lineCount !== 1 ? "s" : ""} • {code.length}{" "}
+								characters
 							</span>
+							{syntaxErrors.errors.length > 0 && (
+								<span className="text-destructive ml-auto">
+									⚠️ {syntaxErrors.errors.length} syntax error{syntaxErrors.errors.length !== 1 ? "s" : ""}
+								</span>
+							)}
+						</div>
+						{(syntaxErrors.errors.length > 0 || syntaxErrors.diagnostics.length > 0) && (
+							<div className="px-4 py-3 bg-destructive/10 border-t border-b border-border max-h-52 overflow-y-auto text-sm">
+								{syntaxErrors.errors.length > 0 && (
+									<div className="mb-2">
+										<h4 className="m-0 mb-2 text-destructive font-semibold">Syntax Errors</h4>
+										<ul className="m-0 pl-6 list-disc">
+											{syntaxErrors.errors.map((error, idx) => (
+												<li key={idx} className="mb-2 text-xs text-destructive">
+													<strong>Line {error.line}:</strong> {error.message}
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
+								{syntaxErrors.diagnostics.length > 0 && (
+									<div className={syntaxErrors.errors.length > 0 ? "mt-2" : ""}>
+										<h4 className="m-0 mb-2 text-warning font-semibold">Suggestions</h4>
+										<ul className="m-0 pl-6 list-disc">
+											{syntaxErrors.diagnostics.map((diag, idx) => (
+												<li key={idx} className="mb-2 text-xs text-warning">
+													{diag}
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
+							</div>
 						)}
 					</div>
-					{(syntaxErrors.errors.length > 0 || syntaxErrors.diagnostics.length > 0) && (
-						<div className="syntax-errors-panel">
-							{syntaxErrors.errors.length > 0 && (
-								<div className="error-section">
-									<h4 style={{ margin: '0 0 0.5rem 0', color: '#c62828' }}>Syntax Errors</h4>
-									<ul style={{ margin: '0', padding: '0 0 0 1.5rem', listStyle: 'disc' }}>
-										{syntaxErrors.errors.map((error, idx) => (
-											<li key={idx} style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: '#c62828' }}>
-												<strong>Line {error.line}:</strong> {error.message}
-											</li>
-										))}
-									</ul>
-								</div>
-							)}
-							{syntaxErrors.diagnostics.length > 0 && (
-								<div className="diagnostic-section" style={{ marginTop: syntaxErrors.errors.length > 0 ? '0.5rem' : 0 }}>
-									<h4 style={{ margin: '0 0 0.5rem 0', color: '#f57c00' }}>Suggestions</h4>
-									<ul style={{ margin: '0', padding: '0 0 0 1.5rem', listStyle: 'disc' }}>
-										{syntaxErrors.diagnostics.map((diag, idx) => (
-											<li key={idx} style={{ marginBottom: '0.5rem', fontSize: '0.875rem', color: '#f57c00' }}>
-												{diag}
-											</li>
-										))}
-									</ul>
-								</div>
-							)}
-						</div>
-					)}
 				</div>
-			</div>
 
-			<div className="panel preview">
-				<div className="panel-header">
-					<h2>Diagram Preview</h2>
-					<div className="toolbar theme-toolbar">
-						{allThemeNames.map((t) => (
-							<button
-								key={t}
-								type="button"
-								className={`btn btn-small${theme === t ? " btn-active" : ""}`}
-								onClick={() => selectTheme(t)}
-								title={`Switch to ${t.charAt(0).toUpperCase() + t.slice(1).replace("-", " ")} theme`}
-								aria-pressed={theme === t}
-							>
-								{t.charAt(0).toUpperCase() + t.slice(1).replace("-", " ")}
-							</button>
-						))}
+				{/* Preview Panel */}
+				<div className="relative flex flex-col flex-1 min-h-0">
+					<div className="flex items-center justify-between px-4 py-3 bg-muted border-b border-border gap-4 flex-shrink-0 h-14">
+						<h2 className="m-0 text-base font-semibold text-foreground">Diagram Preview</h2>
+						<div className="flex gap-1 items-center flex-nowrap">
+							{allThemeNames.map((t) => (
+								<button
+									key={t}
+									type="button"
+									className={theme === t ? buttonClasses.smallActive : buttonClasses.small}
+									onClick={() => selectTheme(t)}
+									title={`Switch to ${t.charAt(0).toUpperCase() + t.slice(1).replace("-", " ")} theme`}
+									aria-pressed={theme === t}
+								>
+									{t.charAt(0).toUpperCase() + t.slice(1).replace("-", " ")}
+								</button>
+							))}
+						</div>
+					</div>
+					<div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-background">
+						{diagramError && (
+							<div className="border border-destructive rounded-lg p-6 bg-destructive/10 text-destructive max-w-md">
+								<div className="font-semibold mb-2">
+									❌ Diagram Error
+								</div>
+								<div className="font-mono text-sm whitespace-pre-wrap break-words opacity-90 mb-3">
+									{diagramError.message || String(diagramError)}
+								</div>
+								<button
+									type="button"
+									onClick={() => setDiagramError(null)}
+									className="px-3 py-1 bg-destructive text-white border-none rounded text-xs font-medium cursor-pointer hover:bg-destructive/90 transition-colors"
+									aria-label="Dismiss diagram error"
+								>
+									Dismiss
+								</button>
+							</div>
+						)}
+						{!diagramError && showDiagram && (
+							<MermaidDiagram
+								key={redrawKey}
+								diagram={code}
+								config={{
+									theme,
+									themeVariables: getMermaidConfig()
+								}}
+								onError={(error) => {
+									setDiagramError(error);
+									console.error("Diagram error:", error);
+								}}
+							/>
+						)}
 					</div>
 				</div>
-				<div className="diagram-container">
-					{diagramError && (
-						<div
-							style={{
-								padding: "1rem",
-								backgroundColor: "#ffebee",
-								border: "1px solid #ef5350",
-								borderRadius: "4px",
-								color: "#c62828",
-								fontSize: "0.875rem",
-							}}
-						>
-							<div style={{ fontWeight: "bold", marginBottom: "0.5rem" }}>
-								❌ Diagram Error
-							</div>
-							<div
-								style={{
-									fontFamily: "monospace",
-									whiteSpace: "pre-wrap",
-									wordBreak: "break-word",
-								}}
-							>
-								{diagramError.message || String(diagramError)}
-							</div>
-							<button
-								type="button"
-								onClick={() => setDiagramError(null)}
-								style={{
-									marginTop: "0.5rem",
-									padding: "0.25rem 0.75rem",
-									background: "#c62828",
-									color: "white",
-									border: "none",
-									borderRadius: "2px",
-									cursor: "pointer",
-									fontSize: "0.75rem",
-								}}
-								aria-label="Dismiss diagram error"
-							>
-								Dismiss
-							</button>
-						</div>
-					)}
-					{!diagramError && showDiagram && (
-						<MermaidDiagram
-						key={redrawKey}
-							diagram={code}
-							config={{
-								theme,
-								themeVariables: getMermaidConfig()
-							}}
-							onError={(error) => {
-								setDiagramError(error);
-								console.error("Diagram error:", error);
-							}}
-						/>
-					)}
-				</div>
-			</div>
 			</div>
 		</>
 	);

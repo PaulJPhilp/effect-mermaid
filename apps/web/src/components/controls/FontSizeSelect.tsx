@@ -1,5 +1,12 @@
 import React from 'react'
-import './Select.css'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label,
+} from '@/components/ui'
 
 interface FontSizeSelectProps {
   label: string
@@ -25,6 +32,7 @@ const FONT_SIZES = [
 
 /**
  * Dropdown selector for font sizes
+ * Uses ShadCn Select component built on Radix UI
  */
 export const FontSizeSelect: React.FC<FontSizeSelectProps> = ({
   label,
@@ -32,19 +40,20 @@ export const FontSizeSelect: React.FC<FontSizeSelectProps> = ({
   onChange,
 }) => {
   return (
-    <div className="select-container">
-      <label className="select-label">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="select-input"
-      >
-        {FONT_SIZES.map((size) => (
-          <option key={size} value={size}>
-            {size}
-          </option>
-        ))}
-      </select>
+    <div className="flex flex-col gap-2">
+      <Label htmlFor="font-size-select">{label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id="font-size-select" className="w-full">
+          <SelectValue placeholder="Select size" />
+        </SelectTrigger>
+        <SelectContent>
+          {FONT_SIZES.map((size) => (
+            <SelectItem key={size} value={size}>
+              {size}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }

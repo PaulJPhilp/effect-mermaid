@@ -1,7 +1,11 @@
 import { useState, useEffect } from "react";
 import { useThemeBuilder } from "../hooks/useThemeBuilder";
 import { ColorInput } from "./ColorInput";
-import "../styles/ThemeBuilderSidebar.css";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "./ui/sheet";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
+import { buttonClasses } from "../utils/buttonClasses";
 import type { CustomTheme } from "../atoms/themeBuilder";
 
 const DEFAULT_COLORS = {
@@ -109,38 +113,33 @@ export const ThemeBuilderSidebar = () => {
   const editingThemeObj = editingTheme ? getTheme(editingTheme) : null;
 
   return (
-    <>
-      {/* Toggle button */}
-      <button
-        className="theme-builder-toggle"
-        onClick={toggleSidebar}
-        title={sidebarOpen ? "Close theme builder" : "Open theme builder"}
-        aria-label="Theme builder"
-      >
-        🎨
-      </button>
+    <Sheet open={sidebarOpen} onOpenChange={toggleSidebar}>
+      <SheetTrigger asChild>
+        <button
+          className="fixed bottom-8 right-8 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-700 text-white border-none text-2xl cursor-pointer transition-all duration-300 z-50 flex items-center justify-center hover:scale-110 active:scale-95"
+          style={{ boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)" }}
+          title={sidebarOpen ? "Close theme builder" : "Open theme builder"}
+          aria-label="Theme builder"
+        >
+          🎨
+        </button>
+      </SheetTrigger>
 
-      {/* Sidebar */}
-      <div className={`theme-builder-sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="sidebar-header">
-          <h3>Theme Builder</h3>
-          <button
-            className="close-button"
-            onClick={toggleSidebar}
-            title="Close"
-            aria-label="Close sidebar"
-          >
-            ✕
-          </button>
-        </div>
+      <SheetContent side="left" className="w-96 overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Theme Builder</SheetTitle>
+          <p className="hidden">Create and customize diagram themes with colors and styling options.</p>
+        </SheetHeader>
 
-        <div className="sidebar-content">
+        <div className="py-6">
           {!isEditing ? (
             <>
               {/* Theme list */}
-              <div className="theme-list-section">
-                <h4>Available Themes</h4>
-                <div className="theme-list">
+              <div className="mb-8">
+                <h4 className="m-0 mb-4 text-sm text-muted-foreground uppercase font-semibold tracking-wider">
+                  Available Themes
+                </h4>
+                <div className="flex flex-col gap-3">
                   {allThemeNames.map((themeName) => {
                     const isActive = currentTheme === themeName;
                     const isBuiltInTheme = isBuiltIn(themeName);
@@ -149,21 +148,29 @@ export const ThemeBuilderSidebar = () => {
                     return (
                       <div
                         key={themeName}
-                        className={`theme-item ${isActive ? "active" : ""}`}
+                        className={`px-3 py-3 border border-border rounded-lg bg-muted transition-all duration-200 ${
+                          isActive
+                            ? "bg-blue-50 dark:bg-blue-950 border-indigo-500 shadow-sm"
+                            : "hover:bg-muted hover:border-border"
+                        }`}
                       >
-                        <div className="theme-item-header">
+                        <div className="flex items-center justify-between gap-2">
                           <button
-                            className="theme-name-button"
+                            className="flex-1 bg-none border-none p-2 text-left cursor-pointer text-foreground font-medium text-sm flex items-center gap-2 hover:text-indigo-500 transition-colors"
                             onClick={() => selectTheme(themeName)}
                             title={`Switch to ${themeName}`}
                           >
                             {themeName}
-                            {isBuiltInTheme && <span className="badge">Built-in</span>}
+                            {isBuiltInTheme && (
+                              <span className="inline-block px-2 py-1 bg-indigo-500 text-white text-xs font-semibold rounded uppercase">
+                                Built-in
+                              </span>
+                            )}
                           </button>
                           {!isBuiltInTheme && (
-                            <div className="theme-item-actions">
+                            <div className="flex gap-1">
                               <button
-                                className="icon-button"
+                                className={buttonClasses.icon}
                                 onClick={() => handleStartEdit(themeName)}
                                 title="Edit theme"
                                 aria-label={`Edit ${themeName}`}
@@ -171,7 +178,7 @@ export const ThemeBuilderSidebar = () => {
                                 ✏️
                               </button>
                               <button
-                                className="icon-button delete"
+                                className={buttonClasses.iconDelete}
                                 onClick={() => setDeleteConfirm(themeName)}
                                 title="Delete theme"
                                 aria-label={`Delete ${themeName}`}
@@ -182,7 +189,9 @@ export const ThemeBuilderSidebar = () => {
                           )}
                         </div>
                         {themeObj?.description && (
-                          <p className="theme-description">{themeObj.description}</p>
+                          <p className="mt-2 mb-0 text-xs text-muted-foreground">
+                            {themeObj.description}
+                          </p>
                         )}
                       </div>
                     );
@@ -192,20 +201,19 @@ export const ThemeBuilderSidebar = () => {
 
               {/* New theme button */}
               {!showNewThemeForm ? (
-                <button
-                  className="btn btn-primary"
+                <Button
                   onClick={() => setShowNewThemeForm(true)}
+                  className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
                 >
                   + New Theme
-                </button>
+                </Button>
               ) : (
-                <div className="new-theme-form">
-                  <input
+                <div className="flex flex-col gap-4 p-4 bg-muted border border-border rounded-lg">
+                  <Input
                     type="text"
                     placeholder="Theme name"
                     value={newThemeName}
                     onChange={(e) => setNewThemeName(e.target.value)}
-                    className="theme-name-input"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleCreateTheme();
                       if (e.key === "Escape") {
@@ -215,44 +223,52 @@ export const ThemeBuilderSidebar = () => {
                     }}
                     autoFocus
                   />
-                  <div className="form-actions">
-                    <button
-                      className="btn btn-small btn-primary"
+                  <div className="flex gap-2">
+                    <Button
                       onClick={handleCreateTheme}
                       disabled={!newThemeName.trim()}
+                      className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
+                      size="sm"
                     >
                       Create
-                    </button>
-                    <button
-                      className="btn btn-small"
+                    </Button>
+                    <Button
                       onClick={() => {
                         setShowNewThemeForm(false);
                         setNewThemeName("");
                       }}
+                      variant="outline"
+                      className="flex-1"
+                      size="sm"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
 
               {/* Delete confirmation */}
               {deleteConfirm && (
-                <div className="delete-confirmation">
-                  <p>Delete "{deleteConfirm}"?</p>
-                  <div className="form-actions">
-                    <button
-                      className="btn btn-small btn-danger"
+                <div className="p-4 bg-destructive/10 border border-destructive rounded-lg mt-4">
+                  <p className="m-0 mb-4 text-destructive font-medium">
+                    Delete "{deleteConfirm}"?
+                  </p>
+                  <div className="flex gap-2">
+                    <Button
                       onClick={() => handleDeleteTheme(deleteConfirm)}
+                      className="flex-1 bg-red-500 hover:bg-red-600 text-white"
+                      size="sm"
                     >
                       Delete
-                    </button>
-                    <button
-                      className="btn btn-small"
+                    </Button>
+                    <Button
                       onClick={() => setDeleteConfirm(null)}
+                      variant="outline"
+                      className="flex-1"
+                      size="sm"
                     >
                       Cancel
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}
@@ -260,11 +276,13 @@ export const ThemeBuilderSidebar = () => {
           ) : (
             /* Edit form */
             editingThemeObj && (
-              <div className="edit-form">
-                <div className="edit-header">
-                  <h4>Editing: {editingTheme}</h4>
+              <div className="flex flex-col gap-6">
+                <div className="flex items-center justify-between gap-2">
+                  <h4 className="m-0 text-foreground font-semibold text-base">
+                    Editing: {editingTheme}
+                  </h4>
                   <button
-                    className="close-button"
+                    className={buttonClasses.close}
                     onClick={stopEditingTheme}
                     title="Close editor"
                     aria-label="Close"
@@ -273,9 +291,12 @@ export const ThemeBuilderSidebar = () => {
                   </button>
                 </div>
 
-                <div className="edit-description">
-                  <label>Description (optional)</label>
-                  <input
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="theme-description">
+                    Description (optional)
+                  </Label>
+                  <Input
+                    id="theme-description"
                     type="text"
                     value={editingThemeObj.description || ""}
                     onChange={(e) => {
@@ -284,13 +305,14 @@ export const ThemeBuilderSidebar = () => {
                       });
                     }}
                     placeholder="Theme description"
-                    className="description-input"
                   />
                 </div>
 
-                <div className="colors-section">
-                  <h5>Colors</h5>
-                  <div className="color-inputs-grid">
+                <div>
+                  <h5 className="m-0 mb-4 text-foreground font-semibold text-sm">
+                    Colors
+                  </h5>
+                  <div className="grid grid-cols-1 gap-4 mb-4">
                     {Object.entries(editingColors).map(([key, value]) => (
                       <ColorInput
                         key={key}
@@ -304,22 +326,26 @@ export const ThemeBuilderSidebar = () => {
                   </div>
                 </div>
 
-                <div className="form-actions">
-                  <button className="btn btn-primary" onClick={handleSaveEdit}>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleSaveEdit}
+                    className="flex-1 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white"
+                  >
                     Save
-                  </button>
-                  <button className="btn" onClick={stopEditingTheme}>
+                  </Button>
+                  <Button
+                    onClick={stopEditingTheme}
+                    variant="outline"
+                    className="flex-1"
+                  >
                     Cancel
-                  </button>
+                  </Button>
                 </div>
               </div>
             )
           )}
         </div>
-      </div>
-
-      {/* Overlay */}
-      {sidebarOpen && <div className="sidebar-overlay" onClick={toggleSidebar} />}
-    </>
+      </SheetContent>
+    </Sheet>
   );
 };

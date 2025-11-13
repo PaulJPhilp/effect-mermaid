@@ -1,6 +1,6 @@
 /* Theme Builder Toggle Button */
 .theme-builder-toggle {
-  @apply fixed bottom-8 right-8 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-700 text-white border-none text-2xl cursor-pointer box-shadow transition-all duration-300 z-999 flex items-center justify-center;
+  @apply fixed bottom-8 right-8 w-14 h-14 rounded-full bg-gradient-to-br from-indigo-500 to-purple-700 text-white border-none text-2xl cursor-pointer transition-all duration-300 z-50 flex items-center justify-center;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -15,7 +15,7 @@
 
 /* Sidebar */
 .theme-builder-sidebar {
-  @apply fixed left-0 top-0 h-screen w-sm bg-white border-r border-border shadow-lg transform transition-transform duration-300 z-998 flex flex-col overflow-hidden;
+  @apply fixed left-0 top-0 h-screen w-96 bg-background border-r border-border shadow-lg transform transition-transform duration-300 z-40 flex flex-col overflow-hidden;
   transform: translateX(-100%);
 }
 
@@ -24,7 +24,7 @@
 }
 
 .sidebar-overlay {
-  @apply fixed inset-0 bg-black/30 z-997;
+  @apply fixed inset-0 bg-black/30 z-30;
   animation: fadeIn 0.3s ease;
 }
 
@@ -43,11 +43,11 @@
 }
 
 .sidebar-header h3 {
-  @apply m-0 text-xl text-text font-semibold;
+  @apply m-0 text-xl text-foreground font-semibold;
 }
 
 .close-button {
-  @apply bg-none border-none text-2xl cursor-pointer text-gray-600 p-0 w-8 h-8 flex items-center justify-center rounded transition-all duration-200 hover:bg-gray-100 hover:text-text;
+  @apply bg-none border-none text-2xl cursor-pointer text-foreground p-0 w-8 h-8 flex items-center justify-center rounded transition-all duration-200 hover:bg-muted hover:text-foreground;
 }
 
 /* Sidebar Content */
@@ -61,7 +61,7 @@
 }
 
 .theme-list-section h4 {
-  @apply m-0 mb-4 text-sm text-text-secondary uppercase font-semibold tracking-wider;
+  @apply m-0 mb-4 text-sm text-muted-foreground uppercase font-semibold tracking-wider;
 }
 
 .theme-list {
@@ -70,11 +70,11 @@
 
 /* Theme Item */
 .theme-item {
-  @apply px-3 py-3 border border-border rounded-lg bg-gray-50 transition-all duration-200 hover:bg-gray-100 hover:border-gray-300;
+  @apply px-3 py-3 border border-border rounded-lg bg-muted transition-all duration-200 hover:bg-muted hover:border-border;
 }
 
 .theme-item.active {
-  @apply bg-blue-50 border-indigo-500 shadow-sm;
+  @apply bg-blue-50 dark:bg-blue-950 border-indigo-500 shadow-sm;
   box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
@@ -83,7 +83,7 @@
 }
 
 .theme-name-button {
-  @apply flex-1 bg-none border-none p-2 text-left cursor-pointer text-text font-medium text-sm flex items-center gap-2 hover:text-indigo-500 transition-colors;
+  @apply flex-1 bg-none border-none p-2 text-left cursor-pointer text-foreground font-medium text-sm flex items-center gap-2 hover:text-indigo-500 transition-colors;
 }
 
 .badge {
@@ -99,20 +99,20 @@
 }
 
 .icon-button.delete:hover {
-  @apply bg-red-100;
+  @apply bg-red-100 dark:bg-red-900;
 }
 
 .theme-description {
-  @apply mt-2 mb-0 text-xs text-gray-600;
+  @apply mt-2 mb-0 text-xs text-muted-foreground;
 }
 
 /* Buttons */
 .btn {
-  @apply px-4 py-3 border border-gray-300 rounded-lg bg-white text-text cursor-pointer text-sm font-medium transition-all duration-200 hover:bg-gray-100 hover:border-gray-400 active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply px-4 py-3 border border-border rounded-lg bg-background text-foreground cursor-pointer text-sm font-medium transition-all duration-200 hover:bg-muted hover:border-border disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .btn:active {
-  @apply scale-98;
+  transform: scale(0.98);
 }
 
 .btn:disabled {
@@ -133,11 +133,12 @@
 
 /* New Theme Form */
 .new-theme-form {
-  @apply flex flex-col gap-4 p-4 bg-gray-50 border border-border rounded-lg;
+  @apply flex flex-col gap-4 p-4 bg-muted border border-border rounded-lg;
 }
 
 .theme-name-input {
-  @apply px-3 py-2 border border-border rounded text-sm font-inherit focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200;
+  @apply px-3 py-2 border border-border rounded text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200;
+  font-family: inherit;
 }
 
 .form-actions {
@@ -150,11 +151,11 @@
 
 /* Delete Confirmation */
 .delete-confirmation {
-  @apply p-4 bg-red-50 border border-red-300 rounded-lg;
+  @apply p-4 bg-destructive/10 border border-destructive rounded-lg;
 }
 
 .delete-confirmation p {
-  @apply m-0 mb-4 text-red-800 font-medium;
+  @apply m-0 mb-4 text-destructive font-medium;
 }
 
 /* Edit Form */
@@ -167,7 +168,7 @@
 }
 
 .edit-header h4 {
-  @apply m-0 text-text font-semibold text-base;
+  @apply m-0 text-foreground font-semibold text-base;
 }
 
 .edit-description {
@@ -175,16 +176,17 @@
 }
 
 .edit-description label {
-  @apply text-xs text-text-secondary font-medium;
+  @apply text-xs text-muted-foreground font-medium;
 }
 
 .description-input {
-  @apply px-3 py-2 border border-border rounded text-sm font-inherit focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200;
+  @apply px-3 py-2 border border-border rounded text-sm focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200;
+  font-family: inherit;
 }
 
 /* Colors Section */
 .colors-section h5 {
-  @apply m-0 mb-4 text-text font-semibold text-sm;
+  @apply m-0 mb-4 text-foreground font-semibold text-sm;
 }
 
 .color-inputs-grid {
@@ -208,13 +210,13 @@
 }
 
 .sidebar-content::-webkit-scrollbar-track {
-  @apply bg-gray-100;
+  @apply bg-muted;
 }
 
 .sidebar-content::-webkit-scrollbar-thumb {
-  @apply bg-gray-300 rounded;
+  @apply bg-border rounded;
 }
 
 .sidebar-content::-webkit-scrollbar-thumb:hover {
-  @apply bg-gray-500;
+  @apply bg-muted-foreground;
 }

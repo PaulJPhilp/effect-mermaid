@@ -235,7 +235,7 @@ open coverage/index.html  # View report
 
 If tests need environment variables, create a `.env.test` file:
 ```env
-VITE_API_URL=http://localhost:3000
+VITE_API_URL=http://localhost:5173
 DEBUG=false
 ```
 

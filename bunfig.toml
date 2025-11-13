@@ -13,3 +13,7 @@ match = [
   "apps/*/src/**/*.test.{ts,tsx}"
 ]
 exclude = ["**/dist/**", "**/build/**", "**/__dist/**"]
+
+# Test environment for packages that need DOM (React components)
+# bun test uses jsdom by default for .tsx files, but be explicit
+testEnvironment = "jsdom"

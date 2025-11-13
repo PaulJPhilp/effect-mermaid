@@ -1,25 +1,25 @@
-# Effect Package Template Agent Guide
+# effect-mermaid Agent Guide
 
 ## Commands
-- **Build**: `pnpm build`
-- **Type check**: `pnpm check`
-- **Test all**: `pnpm test`
-- **Test single file**: `vitest run test/Specific.test.ts`
-- **Coverage**: `pnpm coverage`
-- **Codegen**: `pnpm codegen`
+- **Build**: `bun run build` (all packages) or `bun run --filter PACKAGE build`
+- **Type check**: `bun run check`
+- **Test all**: `bun run test` (watch mode) or `bun run test:ci` (with coverage)
+- **Test single file**: `bun run --filter PACKAGE test -- Specific.test.ts`
+- **Dev**: `bun run dev` (starts web demo on :5173)
 
 ## Architecture
-Effect-based TypeScript package with project references. Source in `src/`, tests in `test/`. Uses pnpm despite Bun preference in rules.
+Monorepo with 4 packages: `effect-mermaid` (core stub), `effect-mermaid-node` (rendering), `effect-mermaid-react` (components), `@effect-mermaid/web` (demo). All use Effect.Service pattern with Layer-based DI. Services: Mermaid (render diagrams), ThemeRegistry (manage themes). Source in `packages/*/src/`, tests in `packages/*/src/**/__tests__/`.
 
 ## Code Style
-- **Imports**: ES modules, Effect framework imports as `import * as Effect from "effect/Effect"`
-- **Types**: Strict TypeScript with `exactOptionalPropertyTypes`, `strictNullChecks`
-- **Naming**: PascalCase for types/classes, camelCase for variables/functions
-- **Error handling**: Effect-based with `Effect.runPromise`
-- **Tests**: `@effect/vitest` framework, files end with `.test.ts`
+- **Imports**: ES modules, `import { Effect, Layer } from "effect"`, service-specific exports
+- **Types**: Strict TS with `exactOptionalPropertyTypes`, `strictNullChecks`
+- **Services**: PascalCase classes extending `Effect.Service<T>()`
+- **Functions**: camelCase; use `Effect.gen()` for sequential async code
+- **Error handling**: Tagged errors (`MermaidError`, `ThemeRegistryError`) with `Effect.catchTag()`
+- **Tests**: `@effect/vitest`, files in `__tests__/*.test.ts`, use `Effect.provide()` with layers
 
 ## Rules
-Follow CLAUDE.md and .cursor/rules/: Use Bun instead of Node.js/npm/pnpm/vite. Prefer Bun.serve(), bun:sqlite, Bun.file over alternatives.
+Follow CLAUDE.md and `.cursor/rules/effect-*.mdc`: Use Bun for all tasks. Services composed via `Layer.merge()`. All public APIs return `Effect` types.
 
 ## Beginner Level Rules
 
