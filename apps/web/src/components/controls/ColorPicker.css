@@ -1,62 +1,19 @@
 .color-picker-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  @apply flex flex-col gap-2 mb-4;
 }
 
 .color-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #333;
+  @apply text-sm font-medium text-text;
 }
 
 .color-picker-wrapper {
-  display: flex;
-  gap: 0.5rem;
-  align-items: center;
+  @apply flex gap-2 items-center;
 }
 
 .color-input {
-  width: 50px;
-  height: 40px;
-  border: 2px solid #ddd;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.color-input:hover {
-  border-color: #bbb;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
-}
-
-.color-input:focus {
-  outline: none;
-  border-color: #0066cc;
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1), 0 2px 6px rgba(0, 0, 0, 0.1);
+  @apply w-12 h-10 border-2 border-gray-300 rounded cursor-pointer transition-all duration-200 hover:border-gray-400 hover:shadow-md focus:outline-none focus:border-primary focus:ring-2 focus:ring-blue-200;
 }
 
 .color-text-input {
-  flex: 1;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 0.875rem;
-  font-family: monospace;
-  background-color: #fff;
-  color: #333;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.color-text-input:hover {
-  border-color: #bbb;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-}
-
-.color-text-input:focus {
-  outline: none;
-  border-color: #0066cc;
-  background-color: #fff;
-  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1), 0 1px 4px rgba(0, 0, 0, 0.1);
+  @apply flex-1 px-3 py-2 border border-gray-300 rounded text-sm font-mono bg-white text-text transition-all duration-200 hover:border-gray-400 hover:shadow-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-blue-200;
 }
