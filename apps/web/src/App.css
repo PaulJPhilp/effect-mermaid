@@ -1,8 +1,9 @@
 .container {
   display: flex;
+  flex-direction: row;
   height: 100vh;
   background: var(--color-bg);
-  transition: margin-right 0.3s ease;
+  transition: margin 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .panel {
@@ -17,16 +18,20 @@
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .panel-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem;
+  padding: 0.75rem 1rem;
   background: var(--color-bg-secondary);
   border-bottom: 1px solid var(--color-border);
   gap: 1rem;
+  flex-shrink: 0;
+  height: 56px;
 }
 
 .panel-header h2 {
@@ -40,6 +45,7 @@
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  flex-wrap: nowrap;
 }
 
 .theme-toolbar {
@@ -80,6 +86,10 @@
 .btn-small {
   padding: 0.375rem 0.75rem;
   font-size: 0.75rem;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .editor-wrapper {
@@ -140,6 +150,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .diagram-container {

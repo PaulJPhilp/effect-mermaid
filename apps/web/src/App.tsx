@@ -7,9 +7,12 @@ import { useState, useEffect } from "react";
 import { RegistryProvider } from "@effect-atom/atom-react";
 import "./App.css";
 import { ThemeBuilderSidebar } from "./components/ThemeBuilderSidebar";
+import { RenderingSettingsPanel } from "./components/RenderingSettingsPanel";
 import { useThemeBuilder } from "./hooks/useThemeBuilder";
+import { useRenderingSettings } from "./hooks/useRenderingSettings";
 import { useRegisterCustomThemes } from "./hooks/useRegisterCustomThemes";
 import { getSyntaxErrorsWithContext } from "./utils/syntaxChecker";
+import { toMermaidConfig } from "./types/renderConfig";
 import { CodeMirrorEditor } from "./components/CodeMirrorEditor";
 
 // Fixed MermaidProvider initialization
@@ -40,8 +43,24 @@ function EditorContent() {
 	const [showDiagram, setShowDiagram] = useState(true);
 
 	// Use theme from theme builder
-	const { currentTheme, customThemes, allThemeNames } = useThemeBuilder();
+	const { currentTheme, customThemes, allThemeNames, sidebarOpen: themeBuilderOpen } = useThemeBuilder();
 	const theme = currentTheme;
+
+	// Use rendering settings for element-level controls
+	const {
+		renderConfig,
+		showSettingsPanel,
+		setShowSettingsPanel,
+		updateNodes,
+		updateEdges,
+		updateLabels,
+		updateLayout,
+		updateContainer,
+		applyPreset,
+		resetToDefaults,
+		exportConfig,
+		getMermaidConfig,
+	} = useRenderingSettings();
 
 	// Register custom themes with Mermaid
 	useRegisterCustomThemes(customThemes as Record<string, { name: string; colors: Record<string, string>; description?: string }>);
@@ -118,7 +137,27 @@ function EditorContent() {
 	return (
 		<>
 			<ThemeBuilderSidebar />
-			<div className="container">
+			<RenderingSettingsPanel
+				renderConfig={renderConfig}
+				showSettingsPanel={showSettingsPanel}
+				setShowSettingsPanel={setShowSettingsPanel}
+				updateNodes={updateNodes}
+				updateEdges={updateEdges}
+				updateLabels={updateLabels}
+				updateLayout={updateLayout}
+				updateContainer={updateContainer}
+				applyPreset={applyPreset}
+				resetToDefaults={resetToDefaults}
+				exportConfig={exportConfig}
+			/>
+			<div
+				className="container"
+				style={{
+					marginRight: showSettingsPanel ? '380px' : '0',
+					marginLeft: themeBuilderOpen ? '350px' : '0',
+					transition: 'margin 0.3s ease-out'
+				}}
+			>
 				<div className="panel editor">
 				<div className="panel-header">
 					<h2>Diagram Code</h2>
@@ -270,7 +309,10 @@ function EditorContent() {
 						<MermaidDiagram
 						key={redrawKey}
 							diagram={code}
-							config={{ theme }}
+							config={{
+								theme,
+								themeVariables: getMermaidConfig()
+							}}
 							onError={(error) => {
 								setDiagramError(error);
 								console.error("Diagram error:", error);
