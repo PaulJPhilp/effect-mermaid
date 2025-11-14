@@ -109,21 +109,6 @@ export const RenderingSettingsPanel: React.FC<RenderingSettingsPanelProps> = ({
 						<p className="block text-xs font-semibold text-foreground uppercase tracking-wider">
 							Presets
 						</p>
-						<label
-							htmlFor="presets-toggle"
-							className="flex items-center gap-2 text-sm text-foreground cursor-pointer"
-						>
-							<input
-								id="presets-toggle"
-								type="checkbox"
-								checked={renderConfig.container.useMaxWidth}
-								onChange={(e) =>
-									updateContainer({ useMaxWidth: e.target.checked })
-								}
-								className="cursor-pointer w-4 h-4"
-							/>
-							Presets
-						</label>
 						<div className="grid grid-cols-2 gap-3">
 							<Button
 								variant="outline"
