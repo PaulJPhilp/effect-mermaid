@@ -40,7 +40,6 @@ const EffectLayerContext = createContext(null);
  * @see {@link MermaidDiagram} for using diagrams within the provider
  */
 export const MermaidProvider = ({ children, config, }) => {
-    console.log("MermaidProvider", config);
     const [layer, setLayer] = useState(null);
     const [isInitialized, setIsInitialized] = useState(false);
     useEffect(() => {

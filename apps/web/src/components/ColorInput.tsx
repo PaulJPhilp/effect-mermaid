@@ -1,7 +1,5 @@
-import { useState, useRef, useEffect } from "react";
-import { HexColorPicker } from "react-colorful";
-import "react-colorful";
-import "../styles/ColorInput.css";
+import { useState, useEffect } from "react";
+import { Label, Input } from "@/components/ui";
 
 interface ColorInputProps {
   label: string;
@@ -10,10 +8,7 @@ interface ColorInputProps {
 }
 
 export const ColorInput = ({ label, value, onChange }: ColorInputProps) => {
-  const [isOpen, setIsOpen] = useState(false);
   const [inputValue, setInputValue] = useState(value);
-  const popoverRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Update inputValue when value prop changes
   useEffect(() => {
@@ -40,40 +35,22 @@ export const ColorInput = ({ label, value, onChange }: ColorInputProps) => {
     onChange(newValue);
   };
 
-  // Close popover when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        popoverRef.current &&
-        !popoverRef.current.contains(e.target as Node) &&
-        buttonRef.current &&
-        !buttonRef.current.contains(e.target as Node)
-      ) {
-        setIsOpen(false);
-      }
-    };
-
-    if (isOpen) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
-  }, [isOpen]);
-
   return (
-    <div className="color-input-wrapper">
-      <label>{label}</label>
-      <div className="color-input-container">
+    <div className="flex flex-col gap-2">
+      <Label htmlFor="color-input">{label}</Label>
+      <div className="flex gap-2">
         <input
           type="color"
           value={hexValue}
           onChange={(e) => {
             handleInputChange(e.target.value);
           }}
-          className="color-button"
+          className="h-10 w-12 cursor-pointer rounded-md border border-input"
           title="Click to pick color"
           aria-label={`Color picker for ${label}`}
         />
-        <input
+        <Input
+          id="color-input"
           type="text"
           value={inputValue}
           onChange={(e) => {
@@ -81,14 +58,13 @@ export const ColorInput = ({ label, value, onChange }: ColorInputProps) => {
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
-              // onChange already fired, just close the popover if open
               e.currentTarget.blur();
             }
           }}
           placeholder="#000000"
-          className="color-text-input"
           maxLength={7}
           autoComplete="off"
+          className="flex-1"
         />
       </div>
     </div>

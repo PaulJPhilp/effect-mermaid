@@ -89,7 +89,6 @@ export const MermaidProvider: React.FC<MermaidProviderProps> = ({
 	children,
 	config,
 }) => {
-	console.log("MermaidProvider", config);
 	const [layer, setLayer] = useState<MermaidLayer | null>(null);
 	const [isInitialized, setIsInitialized] = useState(false);
 

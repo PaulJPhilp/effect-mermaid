@@ -28,8 +28,8 @@
   "scripts": {
     "build": "bunx tsc -b tsconfig.build.json && bunx babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps && bunx babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps && bunx node ../../node_modules/@effect/build-utils/main.js pack-v2",
     "check": "bunx tsc -b tsconfig.json",
-    "test": "bun test",
-    "test:ci": "bun test --coverage"
+    "test": "bunx vitest run",
+    "test:ci": "bunx vitest run --coverage"
   },
   "dependencies": {
     "effect": "^3.19.0",

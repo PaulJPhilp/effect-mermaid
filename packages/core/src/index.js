@@ -34,6 +34,7 @@
  * @see {@link MermaidConfig} for configuration options
  * @see {@link MermaidError} for error handling
  */
+export { makeMermaidSource, makeMermaidSvg, makeDiagramId, isMermaidSource, isMermaidSvg, } from "./global/branded-types.js";
 // Global errors
 /**
  * Comprehensive error type for all Mermaid rendering operations
@@ -148,6 +149,29 @@ export { makeParseError, makeRenderError, makeUnknownError } from "./services/me
  * @see {@link Mermaid.render} for full rendering with type detection
  */
 export { detectDiagramType } from "./services/mermaid/detectType.js";
+// Logger service exports
+/**
+ * Logger service for structured, testable logging
+ *
+ * All logging in effect-mermaid flows through this service to maintain Effect purity
+ * and enable dependency injection of different logging backends.
+ *
+ * @example
+ * ```typescript
+ * import { Logger } from "effect-mermaid";
+ * import { Effect } from "effect";
+ *
+ * const program = Effect.gen(function* () {
+ *   const logger = yield* Logger;
+ *   yield* logger.info("Rendering diagram...");
+ *   yield* logger.warn("Theme not found, using default");
+ * });
+ * ```
+ *
+ * @see {@link Logger} for the default console-based implementation
+ * @see {@link SilentLogger} for testing
+ */
+export { Logger, SilentLogger } from "./services/logger/index.js";
 // Service exports
 /**
  * The Mermaid diagram rendering service

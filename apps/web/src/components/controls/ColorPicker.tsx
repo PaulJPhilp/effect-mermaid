@@ -1,5 +1,5 @@
 import React from 'react'
-import './ColorPicker.css'
+import { Label, Input } from '@/components/ui'
 
 interface ColorPickerProps {
   label: string
@@ -9,6 +9,7 @@ interface ColorPickerProps {
 
 /**
  * Color picker input for selecting colors
+ * Uses native HTML5 color picker + hex text input
  */
 export const ColorPicker: React.FC<ColorPickerProps> = ({
   label,
@@ -33,23 +34,24 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
   }
 
   return (
-    <div className="color-picker-container">
-      <label className="color-label">{label}</label>
-      <div className="color-picker-wrapper">
+    <div className="flex flex-col gap-2">
+      <Label htmlFor="color-picker">{label}</Label>
+      <div className="flex gap-2">
         <input
+          id="color-picker"
           type="color"
           value={value}
           onChange={handleColorChange}
-          className="color-input"
+          className="h-10 w-12 cursor-pointer rounded-md border border-input"
           title={label}
         />
-        <input
+        <Input
           type="text"
           value={inputValue}
           onChange={handleTextChange}
           placeholder="#000000"
-          className="color-text-input"
           maxLength={7}
+          className="flex-1"
         />
       </div>
     </div>

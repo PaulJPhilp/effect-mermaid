@@ -1,88 +1,55 @@
 .number-slider-container {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  @apply flex flex-col gap-2 mb-4;
 }
 
 .slider-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  @apply flex justify-between items-center;
 }
 
 .slider-label {
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #333;
+  @apply text-sm font-medium text-text;
 }
 
 .slider-value {
-  font-size: 0.75rem;
-  color: #666;
-  font-family: monospace;
-  background-color: #f5f5f5;
-  padding: 0.25rem 0.5rem;
-  border-radius: 3px;
+  @apply text-xs text-gray-600 font-mono bg-gray-100 px-2 py-1 rounded;
 }
 
 .slider-input {
-  width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(to right, #ddd 0%, #ddd 100%);
-  outline: none;
+  @apply w-full h-1.5 rounded bg-gray-300 outline-none cursor-pointer accent-primary;
   -webkit-appearance: none;
   appearance: none;
-  cursor: pointer;
 }
 
 .slider-input::-webkit-slider-thumb {
+  @apply w-4 h-4 rounded-full bg-primary cursor-pointer transition-all duration-200 hover:bg-blue-700 hover:shadow-lg active:bg-blue-900;
   -webkit-appearance: none;
   appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #0066cc;
-  cursor: pointer;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slider-input::-webkit-slider-thumb:hover {
-  background: #0052a3;
+  @apply scale-125;
   box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
-  transform: scale(1.2);
 }
 
 .slider-input::-webkit-slider-thumb:active {
-  background: #003d7a;
   box-shadow: 0 1px 4px rgba(0, 102, 204, 0.2);
 }
 
 .slider-input::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #0066cc;
-  cursor: pointer;
-  border: none;
+  @apply w-4 h-4 rounded-full bg-primary cursor-pointer border-none transition-all duration-200 hover:bg-blue-700 hover:shadow-lg active:bg-blue-900;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slider-input::-moz-range-thumb:hover {
-  background: #0052a3;
+  @apply scale-125;
   box-shadow: 0 2px 8px rgba(0, 102, 204, 0.3);
-  transform: scale(1.2);
 }
 
 .slider-input::-moz-range-thumb:active {
-  background: #003d7a;
   box-shadow: 0 1px 4px rgba(0, 102, 204, 0.2);
 }
 
 .slider-input::-moz-range-track {
-  background: transparent;
-  border: none;
+  @apply bg-transparent border-none;
 }

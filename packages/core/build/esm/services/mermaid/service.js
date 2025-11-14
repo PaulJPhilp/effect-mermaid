@@ -1,8 +1,9 @@
 import { Effect } from "effect";
+import { Logger } from "../logger/service.js";
+import { ThemeRegistry } from "../themeRegistry/service.js";
+import { detectDiagramType } from "./detectType.js";
 import { makeParseError } from "./errors.js";
 import { makeRenderId, validateDiagram } from "./helpers.js";
-import { detectDiagramType } from "./detectType.js";
-import { ThemeRegistry } from "../themeRegistry/service.js";
 /**
  * Mermaid service implementation using Effect.Service pattern
  *
@@ -13,9 +14,10 @@ import { ThemeRegistry } from "../themeRegistry/service.js";
  * (NodeMermaid, BrowserMermaid) override this in their respective packages.
  */
 export class Mermaid extends /*#__PURE__*/Effect.Service()("effect-mermaid/Mermaid", {
-  effect: /*#__PURE__*/Effect.gen(function* () {
-    // Acquire ThemeRegistry dependency
+  scoped: /*#__PURE__*/Effect.gen(function* () {
+    // Acquire dependencies
     const themeRegistry = yield* ThemeRegistry;
+    const logger = yield* Logger;
     return {
       render: (diagram, config) => {
         return Effect.gen(function* () {
@@ -27,15 +29,18 @@ export class Mermaid extends /*#__PURE__*/Effect.Service()("effect-mermaid/Merma
           // Generate a unique ID for this render
           const id = makeRenderId();
           // Resolve theme from registry if provided
-          let themeName = config?.theme || "default";
+          const themeName = config?.theme || "default";
           if (themeName && themeName !== "default") {
             // Try to resolve from registry to validate theme exists
             yield* themeRegistry.getTheme(themeName).pipe(Effect.catchAll(error => {
-              // Log theme resolution error for debugging
-              console.warn(`[Mermaid] Failed to resolve theme "${themeName}": ${error instanceof Error ? error.message : String(error)}. Using default theme.`);
-              return Effect.succeed({
-                primaryColor: "#fff4e6"
-              });
+              // Log theme resolution error for debugging using Logger service
+              return Effect.gen(function* () {
+                const errorMsg = error instanceof Error ? error.message : String(error);
+                yield* logger.warn(`Failed to resolve theme "${themeName}": ${errorMsg}. Using default theme.`);
+                return Effect.succeed({
+                  primaryColor: "#fff4e6"
+                });
+              }).pipe(Effect.flatten);
             }));
           }
           // Create stub SVG with basic structure

@@ -1,11 +1,11 @@
 import { Effect } from "effect";
-import { type MermaidConfig } from "effect-mermaid";
+import { Logger, type MermaidConfig } from "effect-mermaid";
 declare const BrowserMermaid_base: Effect.Service.Class<BrowserMermaid, "effect-mermaid/BrowserMermaid", {
-    readonly effect: Effect.Effect<{
-        render: (diagram: string, config?: MermaidConfig) => Effect.Effect<string, import("effect-mermaid").MermaidError, never>;
+    readonly scoped: Effect.Effect<{
+        render: (diagram: string, config?: MermaidConfig) => Effect.Effect<any, import("effect-mermaid").MermaidError, never>;
         detectType: (diagram: string) => Effect.Effect<import("effect-mermaid").DiagramType, import("effect-mermaid").MermaidError, never>;
-    }, import("effect-mermaid").MermaidError, import("effect-mermaid").ThemeRegistryApi>;
-    readonly dependencies: readonly [import("effect/Layer").Layer<import("effect-mermaid").ThemeRegistryApi, never, never>];
+    }, never, Logger | import("effect-mermaid").ThemeRegistryApi>;
+    readonly dependencies: readonly [import("effect/Layer").Layer<import("effect-mermaid").ThemeRegistryApi, never, never>, import("effect/Layer").Layer<Logger, never, never>];
 }>;
 /**
  * BrowserMermaid service that provides client-side Mermaid diagram rendering

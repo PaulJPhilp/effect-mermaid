@@ -1,5 +1,5 @@
-import { Effect } from "effect";
-import { makeParseError, makeRenderError, makeUnknownError, validateDiagram, makeRenderId, ThemeRegistry, detectDiagramType } from "effect-mermaid";
+import { Effect, Ref } from "effect";
+import { makeParseError, makeRenderError, makeUnknownError, validateDiagram, makeRenderId, ThemeRegistry, detectDiagramType, Logger } from "effect-mermaid";
 /**
  * NodeMermaid service that provides real Mermaid diagram rendering
  *
@@ -10,23 +10,41 @@ import { makeParseError, makeRenderError, makeUnknownError, validateDiagram, mak
  * variables from ThemeRegistry for custom styling.
  */
 export class NodeMermaid extends /*#__PURE__*/Effect.Service()("effect-mermaid/NodeMermaid", {
-  effect: /*#__PURE__*/Effect.gen(function* () {
-    // Dynamic import of Mermaid
-    const mermaidModule = yield* Effect.tryPromise(() => import("mermaid")).pipe(Effect.catchAll(error => Effect.fail(makeUnknownError(`Failed to import Mermaid: ${error}`, undefined))));
-    // Get ThemeRegistry for custom theme resolution
+  scoped: /*#__PURE__*/Effect.gen(function* () {
+    // Get dependencies
+    const logger = yield* Logger;
     const themeRegistry = yield* ThemeRegistry;
-    // Initialize Mermaid with default config
-    yield* Effect.try({
-      try: () => mermaidModule.default.initialize({
-        startOnLoad: false,
-        theme: "default",
-        securityLevel: "strict"
-      }),
-      catch: error => makeUnknownError(`Failed to initialize Mermaid: ${error}`, undefined)
+    // Lazy initialization: cache Mermaid module after first import
+    const mermaidRef = yield* Ref.make(null);
+    // This function imports and initializes Mermaid only on first call
+    const ensureInitialized = Effect.gen(function* () {
+      const existing = yield* Ref.get(mermaidRef);
+      if (existing) return existing; // Already initialized, return cached
+      // First time: import Mermaid
+      const module = yield* Effect.tryPromise(() => import("mermaid")).pipe(Effect.catchAll(error => {
+        return Effect.gen(function* () {
+          yield* logger.error(`Failed to import Mermaid: ${error}`);
+          return yield* Effect.fail(makeUnknownError(`Failed to import Mermaid: ${error}`, undefined));
+        });
+      }));
+      // Initialize Mermaid with default config
+      yield* Effect.try({
+        try: () => module.default.initialize({
+          startOnLoad: false,
+          theme: "default",
+          securityLevel: "strict"
+        }),
+        catch: error => makeUnknownError(`Failed to initialize Mermaid: ${error}`, undefined)
+      });
+      // Cache for future use
+      yield* Ref.set(mermaidRef, module);
+      return module;
     });
     return {
       render: (diagram, config) => {
         return Effect.gen(function* () {
+          // Lazy load Mermaid on first render call
+          const mermaidModule = yield* ensureInitialized;
           // Validate diagram
           const validationError = validateDiagram(diagram);
           if (validationError) {
@@ -43,9 +61,12 @@ export class NodeMermaid extends /*#__PURE__*/Effect.Service()("effect-mermaid/N
             // Try to resolve theme from registry
             if (config.theme && config.theme !== "default") {
               const themeResult = yield* themeRegistry.getTheme(config.theme).pipe(Effect.catchAll(error => {
-                // Log theme resolution error for debugging
-                console.warn(`[NodeMermaid] Failed to resolve theme "${config.theme}": ${error instanceof Error ? error.message : String(error)}. Using built-in theme.`);
-                return Effect.succeed({});
+                // Log theme resolution error for debugging using Logger service
+                return Effect.gen(function* () {
+                  const errorMsg = error instanceof Error ? error.message : String(error);
+                  yield* logger.warn(`Failed to resolve theme "${config.theme}": ${errorMsg}. Using built-in theme.`);
+                  return {};
+                });
               }));
               // Merge resolved theme variables
               if (Object.keys(themeResult).length > 0) {

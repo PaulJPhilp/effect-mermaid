@@ -6,12 +6,14 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
+      '@': path.resolve(__dirname, './src'),
       'effect-mermaid': path.resolve(__dirname, '../../packages/core/src'),
       'effect-mermaid-react': path.resolve(__dirname, '../../packages/react/src'),
     },
   },
   server: {
-    port: 3000,
-    open: true
+    port: 5173,
+    open: false,
+    strictPort: true
   }
 })

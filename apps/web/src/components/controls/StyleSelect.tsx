@@ -1,5 +1,12 @@
 import React from 'react'
-import './Select.css'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Label,
+} from '@/components/ui'
 
 interface StyleSelectProps {
   label: string
@@ -10,6 +17,7 @@ interface StyleSelectProps {
 
 /**
  * Generic dropdown selector for style options
+ * Uses ShadCn Select component built on Radix UI
  */
 export const StyleSelect: React.FC<StyleSelectProps> = ({
   label,
@@ -18,19 +26,20 @@ export const StyleSelect: React.FC<StyleSelectProps> = ({
   onChange,
 }) => {
   return (
-    <div className="select-container">
-      <label className="select-label">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="select-input"
-      >
-        {options.map((option) => (
-          <option key={option.value} value={option.value}>
-            {option.label}
-          </option>
-        ))}
-      </select>
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={`style-select-${label}`}>{label}</Label>
+      <Select value={value} onValueChange={onChange}>
+        <SelectTrigger id={`style-select-${label}`} className="w-full">
+          <SelectValue placeholder="Select option" />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
     </div>
   )
 }

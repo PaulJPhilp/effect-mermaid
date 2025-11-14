@@ -1,5 +1,5 @@
 import React from 'react'
-import './NumberSlider.css'
+import { Label, Slider } from '@/components/ui'
 
 interface NumberSliderProps {
   label: string
@@ -13,6 +13,7 @@ interface NumberSliderProps {
 
 /**
  * Reusable slider component for numeric values
+ * Uses ShadCn Slider component built on Radix UI
  */
 export const NumberSlider: React.FC<NumberSliderProps> = ({
   label,
@@ -24,22 +25,21 @@ export const NumberSlider: React.FC<NumberSliderProps> = ({
   onChange,
 }) => {
   return (
-    <div className="number-slider-container">
-      <div className="slider-header">
-        <label className="slider-label">{label}</label>
-        <span className="slider-value">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <Label>{label}</Label>
+        <span className="text-sm font-semibold text-muted-foreground">
           {value}
           {unit}
         </span>
       </div>
-      <input
-        type="range"
+      <Slider
         min={min}
         max={max}
         step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="slider-input"
+        value={[value]}
+        onValueChange={(values) => onChange(values[0])}
+        className="w-full"
       />
     </div>
   )
