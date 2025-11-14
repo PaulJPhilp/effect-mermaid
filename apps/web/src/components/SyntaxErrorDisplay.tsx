@@ -1,6 +1,7 @@
 import React from "react";
-import { AlertCircle, X } from "lucide-react";
+import { AlertCircle, X, ExternalLink, BookOpen } from "lucide-react";
 import type { SyntaxErrorInfo } from "../hooks/useEditorState";
+import { Button } from "./ui/button";
 
 interface SyntaxErrorDisplayProps {
   errors: SyntaxErrorInfo;
@@ -81,10 +82,10 @@ export const SyntaxErrorDisplay: React.FC<SyntaxErrorDisplayProps> = ({
           {/* Diagnostics */}
           {errors.diagnostics.length > 0 && (
             <div className="mt-3 pt-2 border-t border-destructive/10">
-              <p className="text-xs font-semibold text-destructive/70 mb-1">
+              <p className="mb-1 text-xs font-semibold text-destructive/70">
                 Suggestions:
               </p>
-              <ul className="space-y-1 text-xs text-destructive/80">
+              <ul className="mb-2 space-y-1 text-xs text-destructive/80">
                 {errors.diagnostics.map((diag, i) => (
                   <li key={i} className="flex gap-2">
                     <span>•</span>
@@ -94,6 +95,42 @@ export const SyntaxErrorDisplay: React.FC<SyntaxErrorDisplayProps> = ({
               </ul>
             </div>
           )}
+
+          {/* Help links */}
+          <div className="mt-3 flex flex-wrap gap-2 pt-2 border-t border-destructive/10">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                window.open(
+                  "https://mermaid.js.org/intro/getting-started.html",
+                  "_blank",
+                  "noopener,noreferrer"
+                );
+              }}
+            >
+              <BookOpen className="mr-1.5 h-3 w-3" />
+              Mermaid Docs
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => {
+                window.open(
+                  "https://mermaid.js.org/syntax/flowchart.html",
+                  "_blank",
+                  "noopener,noreferrer"
+                );
+              }}
+            >
+              <ExternalLink className="mr-1.5 h-3 w-3" />
+              Syntax Guide
+            </Button>
+          </div>
         </div>
       </div>
     </div>

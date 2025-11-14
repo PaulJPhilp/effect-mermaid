@@ -1,6 +1,6 @@
 import { RegistryProvider } from "@effect-atom/atom-react"
 import { MermaidProvider } from "effect-mermaid-react"
-import { Palette, SlidersHorizontal, Moon, SunMedium } from "lucide-react"
+import { Palette, SlidersHorizontal, Moon, SunMedium, FileCode } from "lucide-react"
 import { useCallback, useEffect, useState } from "react"
 
 import "./App.css"
@@ -9,14 +9,24 @@ import { PreviewSection } from "./components/PreviewSection"
 import { RenderingSettingsPanel } from "./components/RenderingSettingsPanel"
 import { ThemeBuilderSidebar } from "./components/ThemeBuilderSidebar"
 import { Button } from "./components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./components/ui/select"
 import { useDiagramRender } from "./hooks/useDiagramRender"
 import { useRegisterCustomThemes } from "./hooks/useRegisterCustomThemes"
 import { useRenderingSettings } from "./hooks/useRenderingSettings"
 import { useThemeBuilder } from "./hooks/useThemeBuilder"
+import { DIAGRAM_EXAMPLES } from "./utils/examples"
 
 function EditorContent() {
   const [code, setCode] = useState("")
   const [diagramError, setDiagramError] = useState<Error | null>(null)
+  const [selectedExample, setSelectedExample] = useState<string | null>(null)
+  const [exampleToLoad, setExampleToLoad] = useState<string | null>(null)
 
   const {
     currentTheme,
@@ -80,6 +90,24 @@ function EditorContent() {
     setDiagramError(null)
   }, [])
 
+  const handleLoadExample = useCallback((exampleName: string) => {
+    const example = DIAGRAM_EXAMPLES.find((ex) => ex.name === exampleName)
+    if (example) {
+      setSelectedExample(exampleName)
+      setExampleToLoad(example.code)
+      setDiagramError(null)
+    }
+  }, [])
+
+  // Reset example selection after it's been loaded
+  useEffect(() => {
+    if (exampleToLoad && code === exampleToLoad) {
+      // Example has been loaded, reset the selection
+      setExampleToLoad(null)
+      setSelectedExample(null)
+    }
+  }, [code, exampleToLoad])
+
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
       <header className="flex items-center justify-between border-b border-border px-4 py-3">
@@ -93,6 +121,29 @@ function EditorContent() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Examples dropdown */}
+          <Select
+            value={selectedExample || undefined}
+            onValueChange={handleLoadExample}
+          >
+            <SelectTrigger className="hidden h-9 w-[180px] gap-2 sm:flex">
+              <FileCode className="h-4 w-4" />
+              <SelectValue placeholder="Examples" />
+            </SelectTrigger>
+            <SelectContent>
+              {DIAGRAM_EXAMPLES.map((example) => (
+                <SelectItem key={example.name} value={example.name}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{example.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {example.description}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
           <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
             <span className="rounded-full border border-border bg-muted px-2 py-1">
               Theme: <span className="font-medium">{currentTheme}</span>
@@ -141,7 +192,10 @@ function EditorContent() {
 
       <main className="flex flex-1 gap-4 overflow-hidden px-4 py-4">
         <section className="flex flex-1 flex-col overflow-hidden">
-          <EditorSection onCodeChange={setCode} />
+          <EditorSection
+            onCodeChange={setCode}
+            loadExample={exampleToLoad}
+          />
         </section>
 
         <section className="flex flex-1 flex-col overflow-hidden">

@@ -13,6 +13,7 @@ const DEFAULT_DIAGRAM = `graph LR
 
 interface EditorSectionProps {
   onCodeChange: (code: string) => void;
+  loadExample?: string | null;
 }
 
 /**
@@ -26,9 +27,17 @@ interface EditorSectionProps {
  */
 export const EditorSection: React.FC<EditorSectionProps> = ({
   onCodeChange,
+  loadExample,
 }) => {
   const { code, setCode, errors, lineCount, clearCode } =
     useEditorState(DEFAULT_DIAGRAM);
+
+  // Load example when loadExample prop changes
+  React.useEffect(() => {
+    if (loadExample) {
+      setCode(loadExample);
+    }
+  }, [loadExample, setCode]);
 
   // Notify parent when code changes
   React.useEffect(() => {
