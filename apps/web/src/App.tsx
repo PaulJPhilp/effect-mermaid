@@ -318,7 +318,7 @@ function EditorContent() {
 								diagram={code}
 								config={{
 									theme,
-									themeVariables: getMermaidConfig(),
+									...getMermaidConfig(),
 								}}
 								onError={(error) => {
 									setDiagramError(error);
