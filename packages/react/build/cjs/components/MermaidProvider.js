@@ -49,7 +49,6 @@ const MermaidProvider = ({
   children,
   config
 }) => {
-  console.log("MermaidProvider", config);
   const [layer, setLayer] = (0, _react.useState)(null);
   const [isInitialized, setIsInitialized] = (0, _react.useState)(false);
   (0, _react.useEffect)(() => {

@@ -53,7 +53,6 @@ import { useMermaidInitialized, useMermaidLayer, } from "./MermaidProvider.js";
  * @see {@link useMermaidInitialized} to check provider initialization
  */
 export const MermaidDiagram = ({ diagram, config, className, style, onRender, onError, }) => {
-    console.log("MermaidDiagram", diagram, config, className, style, onRender, onError);
     const layer = useMermaidLayer();
     const isInitialized = useMermaidInitialized();
     const [svg, setSvg] = useState("");

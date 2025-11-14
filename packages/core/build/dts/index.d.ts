@@ -35,6 +35,25 @@
  * @see {@link MermaidError} for error handling
  */
 /**
+ * Branded types for Mermaid diagram handling
+ *
+ * Use these types to distinguish between diagram source code and rendered SVG
+ * at the type level, preventing accidental mixups.
+ *
+ * @example
+ * ```typescript
+ * import { MermaidSource, MermaidSvg, makeMermaidSource } from "effect-mermaid";
+ *
+ * const source = makeMermaidSource("graph TD\n  A-->B");
+ * const svg: MermaidSvg = yield* mermaid.render(source);
+ * ```
+ *
+ * @see {@link makeMermaidSource} to create a MermaidSource
+ * @see {@link makeMermaidSvg} to create a MermaidSvg (internal use)
+ */
+export type { MermaidSource, MermaidSvg, DiagramId } from "./global/branded-types.js";
+export { makeMermaidSource, makeMermaidSvg, makeDiagramId, isMermaidSource, isMermaidSvg, } from "./global/branded-types.js";
+/**
  * Type discriminant for Mermaid diagram types
  *
  * Represents the supported diagram type categories that can be detected from
@@ -205,6 +224,29 @@ export { makeParseError, makeRenderError, makeUnknownError } from "./services/me
  * @see {@link Mermaid.render} for full rendering with type detection
  */
 export { detectDiagramType } from "./services/mermaid/detectType.js";
+/**
+ * Logger service for structured, testable logging
+ *
+ * All logging in effect-mermaid flows through this service to maintain Effect purity
+ * and enable dependency injection of different logging backends.
+ *
+ * @example
+ * ```typescript
+ * import { Logger } from "effect-mermaid";
+ * import { Effect } from "effect";
+ *
+ * const program = Effect.gen(function* () {
+ *   const logger = yield* Logger;
+ *   yield* logger.info("Rendering diagram...");
+ *   yield* logger.warn("Theme not found, using default");
+ * });
+ * ```
+ *
+ * @see {@link Logger} for the default console-based implementation
+ * @see {@link SilentLogger} for testing
+ */
+export { Logger, SilentLogger } from "./services/logger/index.js";
+export type { LoggerApi } from "./services/logger/index.js";
 /**
  * The Mermaid diagram rendering service
  *

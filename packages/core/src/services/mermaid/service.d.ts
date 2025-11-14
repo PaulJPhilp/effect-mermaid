@@ -1,11 +1,12 @@
 import { Effect } from "effect";
-import { MermaidApi } from "./api.js";
-import { MermaidConfig } from "../../global/schema.js";
+import type { MermaidConfig } from "../../global/schema.js";
+import { Logger } from "../logger/service.js";
+import type { MermaidApi } from "./api.js";
 declare const Mermaid_base: Effect.Service.Class<Mermaid, "effect-mermaid/Mermaid", {
-    readonly effect: Effect.Effect<{
-        render: (diagram: string, config?: MermaidConfig) => Effect.Effect<string, import("effect-mermaid-node").MermaidError, never>;
-        detectType: (diagram: string) => Effect.Effect<import("effect-mermaid-node").DiagramType, import("effect-mermaid-node").MermaidError, never>;
-    }, never, import("../themeRegistry/api.js").ThemeRegistryApi>;
+    readonly scoped: Effect.Effect<{
+        render: (diagram: string, config?: MermaidConfig) => Effect.Effect<string, import("../../index.js").MermaidError, never>;
+        detectType: (diagram: string) => Effect.Effect<import("../../index.js").DiagramType, import("../../index.js").MermaidError, never>;
+    }, never, Logger | import("../themeRegistry/api.js").ThemeRegistryApi>;
 }>;
 /**
  * Mermaid service implementation using Effect.Service pattern

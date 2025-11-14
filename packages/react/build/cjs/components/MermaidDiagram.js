@@ -67,7 +67,6 @@ const MermaidDiagram = ({
   onRender,
   onError
 }) => {
-  console.log("MermaidDiagram", diagram, config, className, style, onRender, onError);
   const layer = (0, _MermaidProvider.useMermaidLayer)();
   const isInitialized = (0, _MermaidProvider.useMermaidInitialized)();
   const [svg, setSvg] = (0, _react.useState)("");
