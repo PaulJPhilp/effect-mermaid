@@ -1,20 +1,19 @@
+import { RegistryProvider } from "@effect-atom/atom-react";
 import {
 	MermaidDiagram,
 	MermaidProvider,
 	useMermaidInitialized,
 } from "effect-mermaid-react";
-import { useState, useEffect } from "react";
-import { RegistryProvider } from "@effect-atom/atom-react";
+import { useEffect, useState } from "react";
 import "./App.css";
-import { ThemeBuilderSidebar } from "./components/ThemeBuilderSidebar";
-import { RenderingSettingsPanel } from "./components/RenderingSettingsPanel";
-import { useThemeBuilder } from "./hooks/useThemeBuilder";
-import { useRenderingSettings } from "./hooks/useRenderingSettings";
-import { useRegisterCustomThemes } from "./hooks/useRegisterCustomThemes";
-import { getSyntaxErrorsWithContext } from "./utils/syntaxChecker";
-import { toMermaidConfig } from "./types/renderConfig";
 import { CodeMirrorEditor } from "./components/CodeMirrorEditor";
+import { RenderingSettingsPanel } from "./components/RenderingSettingsPanel";
+import { ThemeBuilderSidebar } from "./components/ThemeBuilderSidebar";
+import { useRegisterCustomThemes } from "./hooks/useRegisterCustomThemes";
+import { useRenderingSettings } from "./hooks/useRenderingSettings";
+import { useThemeBuilder } from "./hooks/useThemeBuilder";
 import { buttonClasses } from "./utils/buttonClasses";
+import { getSyntaxErrorsWithContext } from "./utils/syntaxChecker";
 
 // Fixed MermaidProvider initialization
 
@@ -28,14 +27,22 @@ const DEFAULT_DIAGRAM = `graph LR
 type AllThemes = "default" | "dark" | "forest" | "neutral";
 
 interface SyntaxErrorInfo {
-	errors: Array<{ line: number; column?: number; message: string; type: 'error' | 'warning' }>
-	diagnostics: string[]
+	errors: Array<{
+		line: number;
+		column?: number;
+		message: string;
+		type: "error" | "warning";
+	}>;
+	diagnostics: string[];
 }
 
 function EditorContent() {
 	const [code, setCode] = useState(DEFAULT_DIAGRAM);
 	const [diagramError, setDiagramError] = useState<Error | null>(null);
-	const [syntaxErrors, setSyntaxErrors] = useState<SyntaxErrorInfo>({ errors: [], diagnostics: [] });
+	const [syntaxErrors, setSyntaxErrors] = useState<SyntaxErrorInfo>({
+		errors: [],
+		diagnostics: [],
+	});
 	const isInitialized = useMermaidInitialized();
 	const [lineCount, setLineCount] = useState(
 		DEFAULT_DIAGRAM.split("\n").length,
@@ -44,7 +51,12 @@ function EditorContent() {
 	const [showDiagram, setShowDiagram] = useState(true);
 
 	// Use theme from theme builder
-	const { currentTheme, customThemes, allThemeNames, sidebarOpen: themeBuilderOpen } = useThemeBuilder();
+	const {
+		currentTheme,
+		customThemes,
+		allThemeNames,
+		sidebarOpen: themeBuilderOpen,
+	} = useThemeBuilder();
 	const theme = currentTheme;
 
 	// Use rendering settings for element-level controls
@@ -64,7 +76,12 @@ function EditorContent() {
 	} = useRenderingSettings();
 
 	// Register custom themes with Mermaid
-	useRegisterCustomThemes(customThemes as Record<string, { name: string; colors: Record<string, string>; description?: string }>);
+	useRegisterCustomThemes(
+		customThemes as Record<
+			string,
+			{ name: string; colors: Record<string, string>; description?: string }
+		>,
+	);
 
 	// Check syntax when code changes
 	useEffect(() => {
@@ -105,7 +122,7 @@ function EditorContent() {
 		setShowDiagram(false);
 		setTimeout(() => {
 			setShowDiagram(true);
-			setRedrawKey(prev => prev + 1);
+			setRedrawKey((prev) => prev + 1);
 		}, 0);
 	};
 
@@ -155,7 +172,9 @@ function EditorContent() {
 				{/* Editor Panel */}
 				<div className="flex-1 flex flex-col bg-background overflow-hidden border-r border-border md:flex-col md:border-r-0 md:border-b">
 					<div className="flex items-center justify-between px-4 py-3 bg-muted border-b border-border gap-4 flex-shrink-0 h-14">
-						<h2 className="m-0 text-base font-semibold text-foreground">Diagram Code</h2>
+						<h2 className="m-0 text-base font-semibold text-foreground">
+							Diagram Code
+						</h2>
 						<div className="flex gap-2 items-center flex-nowrap">
 							<button
 								className={buttonClasses.small}
@@ -204,30 +223,42 @@ function EditorContent() {
 							</span>
 							{syntaxErrors.errors.length > 0 && (
 								<span className="text-destructive ml-auto">
-									⚠️ {syntaxErrors.errors.length} syntax error{syntaxErrors.errors.length !== 1 ? "s" : ""}
+									⚠️ {syntaxErrors.errors.length} syntax error
+									{syntaxErrors.errors.length !== 1 ? "s" : ""}
 								</span>
 							)}
 						</div>
-						{(syntaxErrors.errors.length > 0 || syntaxErrors.diagnostics.length > 0) && (
+						{(syntaxErrors.errors.length > 0 ||
+							syntaxErrors.diagnostics.length > 0) && (
 							<div className="px-4 py-3 bg-destructive/10 border-t border-b border-border max-h-52 overflow-y-auto text-sm">
 								{syntaxErrors.errors.length > 0 && (
 									<div className="mb-2">
-										<h4 className="m-0 mb-2 text-destructive font-semibold">Syntax Errors</h4>
+										<h4 className="m-0 mb-2 text-destructive font-semibold">
+											Syntax Errors
+										</h4>
 										<ul className="m-0 pl-6 list-disc">
-											{syntaxErrors.errors.map((error, idx) => (
-												<li key={idx} className="mb-2 text-xs text-destructive">
-													<strong>Line {error.line}:</strong> {error.message}
-												</li>
-											))}
+											{syntaxErrors.errors.map((error) => {
+												const key = `${error.line}-${error.column ?? "col"}-${error.message}`;
+												return (
+													<li
+														key={key}
+														className="mb-2 text-xs text-destructive"
+													>
+														<strong>Line {error.line}:</strong> {error.message}
+													</li>
+												);
+											})}
 										</ul>
 									</div>
 								)}
 								{syntaxErrors.diagnostics.length > 0 && (
 									<div className={syntaxErrors.errors.length > 0 ? "mt-2" : ""}>
-										<h4 className="m-0 mb-2 text-warning font-semibold">Suggestions</h4>
+										<h4 className="m-0 mb-2 text-warning font-semibold">
+											Suggestions
+										</h4>
 										<ul className="m-0 pl-6 list-disc">
-											{syntaxErrors.diagnostics.map((diag, idx) => (
-												<li key={idx} className="mb-2 text-xs text-warning">
+											{syntaxErrors.diagnostics.map((diag) => (
+												<li key={diag} className="mb-2 text-xs text-warning">
 													{diag}
 												</li>
 											))}
@@ -242,13 +273,19 @@ function EditorContent() {
 				{/* Preview Panel */}
 				<div className="relative flex flex-col flex-1 min-h-0">
 					<div className="flex items-center justify-between px-4 py-3 bg-muted border-b border-border gap-4 flex-shrink-0 h-14">
-						<h2 className="m-0 text-base font-semibold text-foreground">Diagram Preview</h2>
+						<h2 className="m-0 text-base font-semibold text-foreground">
+							Diagram Preview
+						</h2>
 						<div className="flex gap-1 items-center flex-nowrap">
 							{allThemeNames.map((t) => (
 								<button
 									key={t}
 									type="button"
-									className={theme === t ? buttonClasses.smallActive : buttonClasses.small}
+									className={
+										theme === t
+											? buttonClasses.smallActive
+											: buttonClasses.small
+									}
 									onClick={() => selectTheme(t)}
 									title={`Switch to ${t.charAt(0).toUpperCase() + t.slice(1).replace("-", " ")} theme`}
 									aria-pressed={theme === t}
@@ -261,9 +298,7 @@ function EditorContent() {
 					<div className="flex-1 overflow-auto p-8 flex items-center justify-center bg-background">
 						{diagramError && (
 							<div className="border border-destructive rounded-lg p-6 bg-destructive/10 text-destructive max-w-md">
-								<div className="font-semibold mb-2">
-									❌ Diagram Error
-								</div>
+								<div className="font-semibold mb-2">❌ Diagram Error</div>
 								<div className="font-mono text-sm whitespace-pre-wrap break-words opacity-90 mb-3">
 									{diagramError.message || String(diagramError)}
 								</div>
@@ -283,7 +318,7 @@ function EditorContent() {
 								diagram={code}
 								config={{
 									theme,
-									themeVariables: getMermaidConfig()
+									themeVariables: getMermaidConfig(),
 								}}
 								onError={(error) => {
 									setDiagramError(error);
