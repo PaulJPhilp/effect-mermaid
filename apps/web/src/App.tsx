@@ -1,48 +1,29 @@
-import { RegistryProvider } from "@effect-atom/atom-react";
-import { MermaidProvider } from "effect-mermaid-react";
-import { useCallback, useState } from "react";
-import "./App.css";
-import { EditorSection } from "./components/EditorSection";
-import { PreviewSection } from "./components/PreviewSection";
-import { RenderingSettingsPanel } from "./components/RenderingSettingsPanel";
-import { ThemeBuilderSidebar } from "./components/ThemeBuilderSidebar";
-import { useDiagramRender } from "./hooks/useDiagramRender";
-import { useRegisterCustomThemes } from "./hooks/useRegisterCustomThemes";
-import { useRenderingSettings } from "./hooks/useRenderingSettings";
-import { useThemeBuilder } from "./hooks/useThemeBuilder";
+import { RegistryProvider } from "@effect-atom/atom-react"
+import { MermaidProvider } from "effect-mermaid-react"
+import { Palette, SlidersHorizontal, Moon, SunMedium } from "lucide-react"
+import { useCallback, useEffect, useState } from "react"
 
-/**
- * Main application component - REFACTORED VERSION
- *
- * This is the refactored version showing how to use the new components and hooks.
- *
- * Changes from original:
- * - Reduced from 345 to ~150 lines
- * - Extracted concerns into separate components
- * - Uses custom hooks for state management
- * - Better performance (isolated re-renders)
- *
- * Original: apps/web/src/App.tsx (345 lines)
- * New structure:
- * ├── EditorSection.tsx (editor + errors)
- * ├── PreviewSection.tsx (diagram preview)
- * ├── RenderingSettingsPanel.tsx (existing)
- * ├── ThemeBuilderSidebar.tsx (existing)
- * └── App hooks:
- *     ├── useThemeBuilder (existing)
- *     ├── useRenderingSettings (existing)
- *     ├── useEditorState (new)
- *     ├── useDiagramRender (new)
- *     └── useRegisterCustomThemes (existing)
- */
+import "./App.css"
+import { EditorSection } from "./components/EditorSection"
+import { PreviewSection } from "./components/PreviewSection"
+import { RenderingSettingsPanel } from "./components/RenderingSettingsPanel"
+import { ThemeBuilderSidebar } from "./components/ThemeBuilderSidebar"
+import { Button } from "./components/ui/button"
+import { useDiagramRender } from "./hooks/useDiagramRender"
+import { useRegisterCustomThemes } from "./hooks/useRegisterCustomThemes"
+import { useRenderingSettings } from "./hooks/useRenderingSettings"
+import { useThemeBuilder } from "./hooks/useThemeBuilder"
+
 function EditorContent() {
-  // State management
-  const [code, setCode] = useState("");
-  const [diagramError, setDiagramError] = useState<Error | null>(null);
+  const [code, setCode] = useState("")
+  const [diagramError, setDiagramError] = useState<Error | null>(null)
 
-  // Use existing hooks for theme and settings
-  const { currentTheme, customThemes, allThemeNames, sidebarOpen } =
-    useThemeBuilder();
+  const {
+    currentTheme,
+    customThemes,
+    sidebarOpen,
+    toggleSidebar,
+  } = useThemeBuilder()
 
   const {
     renderConfig,
@@ -57,55 +38,113 @@ function EditorContent() {
     resetToDefaults,
     exportConfig,
     getMermaidConfig,
-  } = useRenderingSettings();
+  } = useRenderingSettings()
 
-  // Use new hook for rendering
-  const { shouldRender, isLoading, error, setRendering } = useDiagramRender(
-    code,
-    {
-      theme: currentTheme,
-      ...getMermaidConfig(),
-    }
-  );
+  const { isLoading, error, setRendering } = useDiagramRender(code, {
+    theme: currentTheme,
+    ...getMermaidConfig(),
+  })
 
-  // Register custom themes
   useRegisterCustomThemes(
     customThemes as Record<
       string,
       { name: string; colors: Record<string, string>; description?: string }
-    >
-  );
+    >,
+  )
 
-  // Handle diagram rendering completion
-  const handleRenderingComplete = useCallback(
-    (success: boolean, renderError?: Error) => {
-      setRendering(success, renderError);
-      if (!success && renderError) {
-        setDiagramError(renderError);
+  const [isDarkMode, setIsDarkMode] = useState(false)
+
+  useEffect(() => {
+    const root = document.documentElement
+    setIsDarkMode(root.classList.contains("dark"))
+  }, [])
+
+  const handleToggleThemeMode = useCallback(() => {
+    const root = document.documentElement
+    setIsDarkMode((previous) => {
+      const next = !previous
+      if (next) {
+        root.classList.add("dark")
+      } else {
+        root.classList.remove("dark")
       }
-    },
-    [setRendering]
-  );
+      return next
+    })
+  }, [])
 
   const handleDiagramError = useCallback((err: Error) => {
-    setDiagramError(err);
-  }, []);
+    setDiagramError(err)
+  }, [])
 
   const handleDismissError = useCallback(() => {
-    setDiagramError(null);
-  }, []);
+    setDiagramError(null)
+  }, [])
 
   return (
     <div className="flex h-screen flex-col bg-background text-foreground">
-      {/* Main content area */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left: Editor */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <EditorSection onCodeChange={setCode} />
+      <header className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex items-center gap-2">
+          <span className="rounded-md bg-muted px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Effect Mermaid
+          </span>
+          <h1 className="text-sm font-semibold text-foreground sm:text-base">
+            Diagram Studio
+          </h1>
         </div>
 
-        {/* Right: Preview */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex items-center gap-3">
+          <div className="hidden items-center gap-2 text-xs text-muted-foreground sm:flex">
+            <span className="rounded-full border border-border bg-muted px-2 py-1">
+              Theme: <span className="font-medium">{currentTheme}</span>
+            </span>
+          </div>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            onClick={handleToggleThemeMode}
+            aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
+          >
+            {isDarkMode ? (
+              <SunMedium className="h-4 w-4" />
+            ) : (
+              <Moon className="h-4 w-4" />
+            )}
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="hidden gap-2 sm:inline-flex"
+            onClick={toggleSidebar}
+            aria-pressed={sidebarOpen}
+          >
+            <Palette className="h-4 w-4" />
+            <span>Theme Builder</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => setShowSettingsPanel(true)}
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            <span className="hidden sm:inline">Rendering Settings</span>
+            <span className="sm:hidden">Settings</span>
+          </Button>
+        </div>
+      </header>
+
+      <main className="flex flex-1 gap-4 overflow-hidden px-4 py-4">
+        <section className="flex flex-1 flex-col overflow-hidden">
+          <EditorSection onCodeChange={setCode} />
+        </section>
+
+        <section className="flex flex-1 flex-col overflow-hidden">
           <PreviewSection
             code={code}
             config={{
@@ -116,10 +155,9 @@ function EditorContent() {
             error={error}
             onError={handleDiagramError}
           />
-        </div>
-      </div>
+        </section>
+      </main>
 
-      {/* Sidebars */}
       <ThemeBuilderSidebar />
       <RenderingSettingsPanel
         renderConfig={renderConfig}
@@ -135,16 +173,16 @@ function EditorContent() {
         exportConfig={exportConfig}
       />
 
-      {/* Error Toast */}
       {diagramError && (
-        <div className="fixed bottom-4 right-4 bg-destructive/10 border border-destructive/30 text-destructive px-4 py-3 rounded-lg shadow-lg flex items-center justify-between gap-4 max-w-sm">
+        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-center justify-between gap-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-destructive shadow-lg">
           <div>
-            <p className="font-semibold text-sm">Error</p>
-            <p className="text-xs mt-1">{diagramError.message}</p>
+            <p className="text-sm font-semibold">Error</p>
+            <p className="mt-1 text-xs">{diagramError.message}</p>
           </div>
           <button
+            type="button"
             onClick={handleDismissError}
-            className="flex-shrink-0 font-bold hover:text-destructive/70 transition-colors"
+            className="flex-shrink-0 font-bold transition-colors hover:text-destructive/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label="Dismiss error"
           >
             ✕
@@ -152,12 +190,9 @@ function EditorContent() {
         </div>
       )}
     </div>
-  );
+  )
 }
 
-/**
- * Root App component with providers
- */
 export function App() {
   return (
     <RegistryProvider>
@@ -165,8 +200,8 @@ export function App() {
         <EditorContent />
       </MermaidProvider>
     </RegistryProvider>
-  );
+  )
 }
 
-export default App;
+export default App
 

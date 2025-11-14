@@ -1,132 +1,205 @@
 /* Mermaid CodeMirror Editor Theme */
 
+/* LIGHT THEME
+   Uses global semantic tokens so the editor aligns with the app's light palette.
+*/
+
+.cm-s-light .cm-editor {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
 /* Comment styling */
 .cm-s-light .cm-comment {
-  color: #999999;
+  color: hsl(var(--muted-foreground));
   font-style: italic;
 }
 
 /* Keyword styling (Mermaid keywords like graph, sequenceDiagram, etc.) */
 .cm-s-light .cm-keyword {
-  color: #0066cc;
-  font-weight: bold;
+  color: hsl(var(--primary));
+  font-weight: 600;
 }
 
 /* String styling (node labels, text in brackets) */
 .cm-s-light .cm-string {
-  color: #228822;
+  color: hsl(var(--accent-foreground));
 }
 
 /* Operator styling (arrows, connections) */
 .cm-s-light .cm-operator {
-  color: #cc0000;
-  font-weight: bold;
+  color: hsl(var(--primary));
+  font-weight: 600;
 }
 
 /* Number styling */
 .cm-s-light .cm-number {
-  color: #ff6600;
+  color: hsl(var(--accent-foreground));
 }
 
 /* Atom/special keyword styling */
 .cm-s-light .cm-atom {
-  color: #6f42c1;
+  color: hsl(var(--primary));
 }
 
 /* Variable/identifier styling */
-.cm-s-light .cm-variable {
-  color: #333333;
+.cm-s-light .cm-variable,
+.cm-s-light .cm-variableName {
+  color: hsl(var(--foreground));
 }
 
 /* Punctuation styling */
 .cm-s-light .cm-punctuation {
-  color: #333333;
+  color: hsl(var(--foreground));
 }
 
 /* Bracket matching */
 .cm-s-light .cm-matchingBracket {
-  background-color: #f0f0f0;
-  border: 1px solid #0066cc;
+  background-color: hsl(var(--muted));
+  border: 1px solid hsl(var(--primary));
 }
 
 .cm-s-light .cm-nonmatchingBracket {
-  color: #cc0000;
+  color: hsl(var(--destructive));
 }
 
 /* Line number styling */
 .cm-s-light .cm-gutters {
-  background-color: #f5f5f5;
-  border-right: 1px solid #ddd;
+  background-color: hsl(var(--muted));
+  border-right: 1px solid hsl(var(--border));
 }
 
 .cm-s-light .cm-linenumber {
-  color: #999999;
+  color: hsl(var(--muted-foreground));
 }
 
 /* Cursor styling */
 .cm-s-light .cm-cursor {
-  border-left: 1px solid #333333;
+  border-left: 1px solid hsl(var(--foreground));
 }
 
 /* Selection styling */
-.cm-s-light .cm-selection {
-  background-color: #d9e8f7;
-}
-
-.cm-s-light .cm-selectionBackground {
-  background-color: #d9e8f7 !important;
+.cm-s-light .cm-selectionBackground,
+.cm-s-light .cm-selectionLayer .cm-selectionBackground {
+  background-color: hsl(var(--accent) / 0.25);
 }
 
 /* Active line styling */
 .cm-s-light .cm-activeLine {
-  background-color: #f9f9f9;
+  background-color: hsl(var(--muted) / 0.6);
 }
 
-/* Error/diagnostic styling */
+/* Diagnostics */
 .cm-s-light .cm-diagnostic-error {
-  background-color: #ffe8e8;
-  color: #cc0000;
-  border-left: 3px solid #cc0000;
+  background-color: hsl(var(--destructive) / 0.08);
+  color: hsl(var(--destructive));
+  border-left: 3px solid hsl(var(--destructive));
 }
 
 .cm-s-light .cm-diagnostic-warning {
-  background-color: #fff3e8;
-  color: #ff6600;
-  border-left: 3px solid #ff6600;
+  background-color: hsl(var(--accent) / 0.08);
+  color: hsl(var(--accent-foreground));
+  border-left: 3px solid hsl(var(--accent));
 }
 
-/* Dark mode (optional, for future use) */
+/* DARK THEME
+   Uses the same semantic tokens; the underlying values change in `.dark`.
+*/
+
+.cm-s-dark .cm-editor {
+  background-color: hsl(var(--card));
+  color: hsl(var(--foreground));
+}
+
+/* Comment styling */
 .cm-s-dark .cm-comment {
-  color: #666666;
+  color: hsl(var(--muted-foreground));
   font-style: italic;
 }
 
+/* Keyword styling */
 .cm-s-dark .cm-keyword {
-  color: #6ca3ff;
-  font-weight: bold;
+  color: hsl(var(--primary));
+  font-weight: 600;
 }
 
+/* String styling */
 .cm-s-dark .cm-string {
-  color: #52c52e;
+  color: hsl(var(--accent-foreground));
 }
 
+/* Operator styling */
 .cm-s-dark .cm-operator {
-  color: #ff5555;
-  font-weight: bold;
+  color: hsl(var(--primary));
+  font-weight: 600;
 }
 
+/* Number styling */
 .cm-s-dark .cm-number {
-  color: #ffaa66;
+  color: hsl(var(--accent-foreground));
 }
 
+/* Atom/special keyword styling */
 .cm-s-dark .cm-atom {
-  color: #bb88ff;
+  color: hsl(var(--primary));
 }
 
-.cm-s-dark .cm-variable {
-  color: #cccccc;
+/* Variable/identifier styling */
+.cm-s-dark .cm-variable,
+.cm-s-dark .cm-variableName {
+  color: hsl(var(--foreground));
 }
 
+/* Punctuation styling */
 .cm-s-dark .cm-punctuation {
-  color: #cccccc;
+  color: hsl(var(--foreground));
+}
+
+/* Bracket matching */
+.cm-s-dark .cm-matchingBracket {
+  background-color: hsl(var(--muted));
+  border: 1px solid hsl(var(--primary));
+}
+
+.cm-s-dark .cm-nonmatchingBracket {
+  color: hsl(var(--destructive));
+}
+
+/* Line number styling */
+.cm-s-dark .cm-gutters {
+  background-color: hsl(var(--muted));
+  border-right: 1px solid hsl(var(--border));
+}
+
+.cm-s-dark .cm-linenumber {
+  color: hsl(var(--muted-foreground));
+}
+
+/* Cursor styling */
+.cm-s-dark .cm-cursor {
+  border-left: 1px solid hsl(var(--foreground));
+}
+
+/* Selection styling */
+.cm-s-dark .cm-selectionBackground,
+.cm-s-dark .cm-selectionLayer .cm-selectionBackground {
+  background-color: hsl(var(--accent) / 0.3);
+}
+
+/* Active line styling */
+.cm-s-dark .cm-activeLine {
+  background-color: hsl(var(--muted) / 0.8);
+}
+
+/* Diagnostics */
+.cm-s-dark .cm-diagnostic-error {
+  background-color: hsl(var(--destructive) / 0.15);
+  color: hsl(var(--destructive-foreground));
+  border-left: 3px solid hsl(var(--destructive));
+}
+
+.cm-s-dark .cm-diagnostic-warning {
+  background-color: hsl(var(--accent) / 0.15);
+  color: hsl(var(--accent-foreground));
+  border-left: 3px solid hsl(var(--accent));
 }

@@ -2,6 +2,7 @@ import React from "react";
 import { CodeMirrorEditor } from "./CodeMirrorEditor";
 import { SyntaxErrorDisplay } from "./SyntaxErrorDisplay";
 import { useEditorState } from "../hooks/useEditorState";
+import { Button } from "./ui/button";
 
 const DEFAULT_DIAGRAM = `graph LR
     A[Start] --> B{Condition}
@@ -22,17 +23,6 @@ interface EditorSectionProps {
  * - Show syntax errors and warnings
  * - Track line count
  * - Manage editor state (code, errors)
- *
- * @example
- * ```tsx
- * function App() {
- *   const [code, setCode] = useState("");
- *
- *   return (
- *     <EditorSection onCodeChange={setCode} />
- *   );
- * }
- * ```
  */
 export const EditorSection: React.FC<EditorSectionProps> = ({
   onCodeChange,
@@ -45,38 +35,47 @@ export const EditorSection: React.FC<EditorSectionProps> = ({
     onCodeChange(code);
   }, [code, onCodeChange]);
 
+  const hasErrors = errors.errors.length > 0;
+
   return (
-    <div className="flex flex-col h-full bg-background border-r border-border">
+    <div className="flex h-full flex-col rounded-lg border border-border bg-card shadow-sm">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-border">
-        <div className="flex-1">
-          <h2 className="text-lg font-bold text-foreground">Diagram Source</h2>
-          <p className="text-sm text-muted-foreground">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex flex-col">
+          <h2 className="text-sm font-semibold text-foreground">
+            Diagram Source
+          </h2>
+          <p className="text-xs text-muted-foreground">
             Edit Mermaid diagram syntax
           </p>
         </div>
-        <div className="text-right">
-          <div className="text-sm font-mono text-muted-foreground">
+        <div className="flex items-center gap-3">
+          <span className="rounded-full border border-border bg-muted px-2 py-0.5 text-xs font-mono text-muted-foreground">
             {lineCount} lines
-          </div>
-          <button
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
             onClick={clearCode}
-            className="text-xs text-muted-foreground hover:text-foreground transition-colors mt-1"
-            aria-label="Clear code"
+            className="text-xs"
+            aria-label="Clear editor contents"
           >
             Clear
-          </button>
+          </Button>
         </div>
       </div>
 
       {/* Editor */}
       <div className="flex-1 overflow-hidden">
-        <CodeMirrorEditor value={code} onChange={setCode} errors={errors} />
+        <CodeMirrorEditor value={code} onChange={setCode} />
       </div>
 
       {/* Error Display */}
-      {errors.errors.length > 0 && (
-        <SyntaxErrorDisplay errors={errors} onDismiss={clearCode} />
+      {hasErrors && (
+        <div className="border-t border-destructive/20 bg-destructive/5">
+          <SyntaxErrorDisplay errors={errors} onDismiss={clearCode} />
+        </div>
       )}
     </div>
   );
